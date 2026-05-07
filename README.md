@@ -91,13 +91,13 @@ The algorithm only sees the labels DOWN / silent. It does **not** see the actual
 
 The actual physical path each peer uses is unobservable. For each $x = (a_x, b_x) \in N$ we enumerate the **candidate-path set**
 
-$$P(x) \\;:=\\; \\{\\, p = (v_0, v_1, \dots, v_k) \\;:\\; v_0 = a_x,\\; v_k = b_x,\\; v_i \in V \text{ pairwise distinct},\\; (v_i, v_{i+1}) \in E,\\; k \le L \\,\\}, \qquad |P(x)| \le M.$$
+$$P(x) := \\{ p = (v_0, v_1, \dots, v_k) : v_0 = a_x, v_k = b_x, v_i \in V \text{ pairwise distinct}, (v_i, v_{i+1}) \in E, k \le L \\}, \qquad |P(x)| \le M.$$
 
 A path $p$ is **simple** iff its containers $v_0, \dots, v_k$ are pairwise distinct. Defaults: $L = 4$, $M = 20$.
 
 ![Simple paths between A and D](figures/concept_simple_paths.png)
 
-In the diamond above, $P(A, D) = \\{\\, A \to B \to D,\\; A \to C \to D \\,\\}$. A walk like $A \to B \to D \to C \to A$ revisits $A$, so it is not simple and never enters $P(\cdot)$.
+In the diamond above, $P(A, D) = \\{ A \to B \to D, A \to C \to D \\}$. A walk like $A \to B \to D \to C \to A$ revisits $A$, so it is not simple and never enters $P(\cdot)$.
 
 ---
 
@@ -112,7 +112,7 @@ For each peer $x \in N$ let $\pi(x)$ denote its **actual** physical path — a r
 
 Define the **candidate-coverage fraction**
 
-$$f(x, e) \\;:=\\; \frac{|\\{\\, p \in P(x) \\;:\\; e \in p \\,\\}|}{|P(x)|} \\;\in\\; [0, 1].$$
+$$f(x, e) := \frac{|\\{ p \in P(x) : e \in p \\}|}{|P(x)|} \in [0, 1].$$
 
 > **Lemma (Likelihood).** *Under A1 and A2,*
 >
@@ -120,21 +120,21 @@ $$f(x, e) \\;:=\\; \frac{|\\{\\, p \in P(x) \\;:\\; e \in p \\,\\}|}{|P(x)|} \\;
 
 *Proof.* By A2, the event $\\{d \in D\\}$ equals $\\{e^\star \in \pi(d)\\}$. Substituting and using independence (A1):
 
-$$\Pr[d \in D \mid e^\star = e] \\;=\\; \Pr[e \in \pi(d) \mid e^\star = e] \\;\stackrel{\text{(A1)}}{=}\\; \Pr[e \in \pi(d)].$$
+$$\Pr[d \in D \mid e^\star = e] = \Pr[e \in \pi(d) \mid e^\star = e] \stackrel{\text{(A1)}}{=} \Pr[e \in \pi(d)].$$
 
 The second equality drops the conditional because the event $\\{e \in \pi(d)\\}$ depends only on $\pi(d)$, and A1 says $\pi(d) \perp e^\star$ — knowing which edge failed gives no information about which path $d$ chose. (The two occurrences of $e$ above refer to the same fixed edge: on the left it labels the conditioning value of $e^\star$, on the right it is the edge whose presence in $\pi(d)$ we are testing.)
 
 Expanding by total probability over $\pi(d) \in P(d)$:
 
-$$\Pr[e \in \pi(d)] \\;=\\; \sum_{p \in P(d)} \Pr[\pi(d) = p] \cdot \mathbb{1}[e \in p].$$
+$$\Pr[e \in \pi(d)] = \sum_{p \in P(d)} \Pr[\pi(d) = p] \cdot \mathbb{1}[e \in p].$$
 
 Apply A1's uniform law, $\Pr[\pi(d) = p] = 1/|P(d)|$ for every $p \in P(d)$, and pull the constant out of the sum:
 
-$$=\\; \sum_{p \in P(d)} \frac{1}{|P(d)|} \cdot \mathbb{1}[e \in p] \\;=\\; \frac{1}{|P(d)|} \sum_{p \in P(d)} \mathbb{1}[e \in p].$$
+$$= \sum_{p \in P(d)} \frac{1}{|P(d)|} \cdot \mathbb{1}[e \in p] = \frac{1}{|P(d)|} \sum_{p \in P(d)} \mathbb{1}[e \in p].$$
 
 Use the standard identity $\sum_{p \in S} \mathbb{1}[Q(p)] = |\\{p \in S : Q(p)\\}|$ (an indicator sum just counts how many elements satisfy the predicate) with $S = P(d)$ and $Q(p) = (e \in p)$:
 
-$$=\\; \frac{|\\{\\, p \in P(d) \\;:\\; e \in p \\,\\}|}{|P(d)|} \\;=\\; f(d, e).$$
+$$= \frac{|\\{ p \in P(d) : e \in p \\}|}{|P(d)|} = f(d, e).$$
 
 The silent identity follows because $\\{s \in S\\}$ is the complement of $\\{s \in D\\}$. $\square$
 
@@ -146,7 +146,7 @@ The lemma turns the score-design problem into a likelihood-maximisation problem:
 
 Let $\mathrm{dist}_G(\cdot, \cdot)$ be the unweighted shortest-path distance in $G$. For edge $e = (u, v) \in E$ define
 
-$$S_e \\;:=\\; \\{\\, s = (a_s, b_s) \in S \\;:\\; \min(\mathrm{dist}_G(a_s, u),\\, \mathrm{dist}_G(a_s, v),\\, \mathrm{dist}_G(b_s, u),\\, \mathrm{dist}_G(b_s, v)) \le K \\,\\}.$$
+$$S_e := \\{ s = (a_s, b_s) \in S : \min(\mathrm{dist}_G(a_s, u), \mathrm{dist}_G(a_s, v), \mathrm{dist}_G(b_s, u), \mathrm{dist}_G(b_s, v)) \le K \\}.$$
 
 — silent peers with at least one endpoint within $K$ hops of either endpoint of $e$ (default $K = 2$). Restricting to $S_e$ avoids density bias from far-flung silent peers and keeps the per-edge cost bounded.
 
@@ -154,7 +154,7 @@ $$S_e \\;:=\\; \\{\\, s = (a_s, b_s) \in S \\;:\\; \min(\mathrm{dist}_G(a_s, u),
 
 The score for edge $e$ is the log-likelihood of the observed pattern $(D, S)$ under the hypothesis $e^\star = e$, with the silent term softly weighted by $\gamma$ and an optional edge prior $\alpha \cdot \mathrm{Risk}(e)$:
 
-$$\mathrm{Score}(e) \\;=\\; \underbrace{\sum_{d \in D} \log f(d, e)}_{\text{positive (down) evidence}} \\;+\\; \gamma \sum_{s \in S_e} \log\bigl(1 - f(s, e)\bigr) \\;+\\; \alpha \cdot \mathrm{Risk}(e).$$
+$$\mathrm{Score}(e) = \underbrace{\sum_{d \in D} \log f(d, e)}_{\text{positive (down) evidence}} + \gamma \sum_{s \in S_e} \log\bigl(1 - f(s, e)\bigr) + \alpha \cdot \mathrm{Risk}(e).$$
 
 We add a small $\varepsilon = 10^{-3}$ floor to both $f$ and $1 - f$ inside the logs to handle the degenerate cases.
 
@@ -188,7 +188,7 @@ We default $\alpha = 0$ in §5 to isolate stage 1 and let the topology speak. Th
 
 Two edges $e_1, e_2$ are **observationally equivalent** under a peer set $N$ if they appear in the same number of candidate paths of every peer:
 
-$$\forall x \in N : \\;\\; f(x, e_1) = f(x, e_2).$$
+$$\forall x \in N :  f(x, e_1) = f(x, e_2).$$
 
 Whenever this holds, $\sum_d \log f(d, e_1) = \sum_d \log f(d, e_2)$ and $\sum_{s \in S_e} \log(1 - f(s, e_1)) = \sum_{s \in S_e} \log(1 - f(s, e_2))$ for *any* failure pattern, so the scoring rule cannot break the tie.
 
@@ -196,11 +196,11 @@ Whenever this holds, $\sum_d \log f(d, e_1) = \sum_d \log f(d, e_2)$ and $\sum_{
 
 Fix an enumeration $N = \\{x_1, x_2, \dots, x_n\\}$ with $n = |N|$. Let
 
-$$n_i(e) \\;:=\\; |\\{\\, p \in P(x_i) \\;:\\; e \in p \\,\\}|$$
+$$n_i(e) := |\\{ p \in P(x_i) : e \in p \\}|$$
 
 count how many candidate paths of peer $x_i$ contain edge $e$. Define the **signature**
 
-$$\sigma(e) \\;:=\\; \big(\\,(i, n_i(e)) \\;\big|\\; 1 \le i \le n,\\; n_i(e) > 0 \\,\big).$$
+$$\sigma(e) := \big((i, n_i(e)) \big| 1 \le i \le n, n_i(e) > 0 \big).$$
 
 Since $|P(x_i)|$ is shared across all edges of peer $x_i$, edges with identical signatures have identical $f(x_i, \cdot)$ for every peer. They form an equivalence class. We compute signatures in $O(|E| \cdot n \cdot M)$ — see [`identifiability.py`](src/fiber_cut_localizer/identifiability.py).
 
@@ -210,7 +210,7 @@ A textbook example. Consider the *bridge* graph below, with two intermediate nod
 
 The simple paths from $A$ to $B$ within 4 hops are exactly $A \to X_0 \to B$ and $A \to X_1 \to B$. Each of the four edges appears in **exactly one** candidate path, so $n_1(\cdot) = 1$ for all four:
 
-$$\sigma(A\text{–}X_0) \\;=\\; \sigma(X_0\text{–}B) \\;=\\; \sigma(A\text{–}X_1) \\;=\\; \sigma(X_1\text{–}B) \\;=\\; ((1, 1)).$$
+$$\sigma(A\text{–}X_0) = \sigma(X_0\text{–}B) = \sigma(A\text{–}X_1) = \sigma(X_1\text{–}B) = ((1, 1)).$$
 
 All four edges sit in one equivalence class of size 4. No matter which one is the actual cut, the scoring rule produces a 4-way tie. The algorithm correctly narrows the suspect set to that class, but it cannot pick the single guilty edge from inside it. This is exactly the "model granularity" failure mode of §11 in [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md), now with a precise definition.
 
@@ -306,6 +306,16 @@ The last case is subtler: we add two parallel bridge nodes between two anchors *
 ![top-1 vs num_peers](figures/sweep_top1.png)
 
 Synthetic random graphs ($n \in \\{8, 12, 16, 20\\}$, extra edges $\in \\{5, 10, 20\\}$) all show `ambiguous_rate ≈ 0`. `top-1` increases with peer count and decreases as the graph becomes denser (more candidate paths per peer to confuse the scoring). Across all 36 sweep cells the strict and class metrics coincide, supporting the observation that random graphs almost never produce equivalent edges.
+
+### 5.6 Production deployment expectations
+
+The experiments above sample peers **randomly**: 1000 random $(a_x, b_x)$ pairs from $V$. Real operational networks do not look like this. In a typical deployment every container site hosts at least one switch participating in the CDP/LLDP-style adjacency mesh, so every node in $V$ appears as the endpoint of at least one peer pair. Peer coverage is **dense and uniform**, not a random sample.
+
+Under such coverage we expect `class_top-1` to approach 1.00 on every topology in §5.3, including `spine_leaf(8, 16)`: the experimental gap (0.81) reflects random-sampling artifacts (some sites happen to have no peer endpoint in a given trial), not an information-theoretic limit. Re-running the same experiment with peer placements that **guarantee** every node has at least one adjacency closes the gap.
+
+The structural ambiguity that *does* persist in production is essentially one-shaped: **physical parallel fibers between the same two sites** — multi-rail uplinks, redundant cabling through different conduits, wavelength-multiplexed groupings. When $k$ fibers run in parallel between sites $A$ and $B$, the framework abstracts them into a single edge, and every fiber within that group has identical $f(x, \cdot)$ for every peer; they form an equivalence class of size $k$. Distinguishing the cut to a single physical fiber requires out-of-band physical-layer signals (OTDR, port-level cable identification, manual trace) — no candidate-path inference over LLDP-style logs can break this tie.
+
+This decomposition is the practical mirror of the §3.4 two-stage interpretation. Stage 1 (topological likelihood) saturates at the parallel-fiber equivalence class; resolution within the class is out-of-scope for this method and is an instrumentation question, not an algorithm question.
 
 ---
 
