@@ -29,3 +29,13 @@ env/
 
 # Optuna sqlite (if any)
 *.db
+
+# Research source (kept private — do not commit to this public repo)
+scripts/
+src/
+tests/
+results/
+pyproject.toml
+
+# Prototype app (separate, do not commit here)
+prototype/
