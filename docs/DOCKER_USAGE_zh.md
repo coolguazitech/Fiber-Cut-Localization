@@ -27,7 +27,7 @@ docker --version   # 確認有
 docker run -d --init --rm \
     -p 8000:8000 \
     --name fiber-cut-localizer \
-    coolguazi/fiber-cut-localizer:1.0
+    coolguazi/fiber-cut-localizer:2.0
 ```
 
 逐字解釋：
@@ -44,10 +44,36 @@ docker run -d --init --rm \
 
 打開 <http://localhost:8000/>
 
-看到的畫面跟你 local dev mode 完全一樣 —— 左邊 React Flow topology canvas、
-右邊 Topology Generator → Research Lab → Peer Inspector → Ranking。所有功能
-（Generator slider、Cut simulate、Peer Inspector、path 高亮、Live Alarms tab、
-ranking）都能用。
+畫面跟 local dev mode 完全一樣。預設進入 **Timeline** 分頁：
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│ IFDOWN 密度帶狀條（橫跨整個寬度，中央有固定選取窗）              │
+├───────────────────────────────────┬─┬────────────────────────┤
+│                                   │▏│ Probable cut FIBER-...  │
+│                                   │▏├────────────────────────┤
+│          拓樸圖                     │▏│ Top 10 suspects        │
+│          (React Flow)             │▏├────────────────────────┤
+│                                   │▏│[Components][Rest.][Log]│
+└───────────────────────────────────┴─┴────────────────────────┘
+                                     ↑ 左右拖曳調整比例
+```
+
+操作邏輯只有一句話：**帶狀條中央那個窗框住的時間區間，就是演算法拿來定位的
+DOWN 集合 D**。窗移到哪，排名就跟著重算。
+
+- 拖帶狀條移動時間；拖窗的左右邊緣改變窗寬；滾輪縮放視野
+- 右上 `LIVE` 把窗釘在最新的 log 上；一拖拉就自動脫離
+- 帶狀條上淡色底帶是系統自動偵測到的 burst，點一下直接 snap 過去
+- 橘色的 bar 是 unmapped（設備不在 baseline N 裡）—— 會顯示但不進 D
+
+另一個分頁 **Research Lab** 是原本的研究介面（Topology Generator、Cut
+simulate、Peer Inspector、Ranking），全部保留。
+
+> **給第一次試的人**：內建那張 8 機房 / 15 對 peer 的範例網**太稀疏**，
+> 演算法在上面本來就常常猜錯，別誤以為壞了。先切到 Research Lab 分頁，用
+> Topology Generator 拉出 26 節點 / 700 對 peer 左右的拓樸，再切回 Timeline
+> 就會看到它穩定命中。或者直接照 ⑨ 掛上你自己的拓樸。
 
 ## ③ 確認跑得起來（option，自我健檢）
 
@@ -78,7 +104,7 @@ docker stop fiber-cut-localizer
 ```bash
 docker run -d --init --rm -p 9090:8000 \
     --name fiber-cut-localizer \
-    coolguazi/fiber-cut-localizer:1.0
+    coolguazi/fiber-cut-localizer:2.0
 ```
 
 然後開 <http://localhost:9090/>（左邊改成你想用的 port、右邊永遠保持 `8000`，
@@ -93,7 +119,7 @@ docker run -d --init --rm -p 9090:8000 \
 ```bash
 docker run -d --init --rm -p 0.0.0.0:8000:8000 \
     --name fiber-cut-localizer \
-    coolguazi/fiber-cut-localizer:1.0
+    coolguazi/fiber-cut-localizer:2.0
 ```
 
 差別只是把 host 端從預設 `127.0.0.1` 換成 `0.0.0.0`（聽所有網卡）。
@@ -113,16 +139,19 @@ docker run -d --init --rm -p 8000:8000 \
 
 ---
 
-## ⑨ 用自家網路拓樸（不用內建 SW-A..SW-H 範例）
+## ⑨ 用自家網路拓樸（不用內建 DC1..DC8 範例）
 
 ### 為什麼要這樣做
 
-預設 image 內建一張範例網：8 個泛用 switch `SW-A..SW-H`、10 條 fiber、
-12 個 baseline neighbor pair（純為了 demo 跟測試）。研究時你會想用：
+預設 image 內建一張範例網：8 個容器（datacenter）`DC1..DC8`、10 條跨機房
+fiber、12 個 baseline 邏輯鄰居 pair（純為了 demo 跟測試）。研究時你會想用：
 
 - 你自己生成的拓樸（從 Topology Generator 拉 slider 生出來的），或
-- 你真實 DC 的 fiber 佈線（多少機房、有哪些跨機房 fiber、平常有哪些
-  OSPF/BFD/BGP adjacency）
+- 你真實的 fiber 佈線（多少機房、機房之間有哪些實體光纖直連、平常
+  有哪些跨機房 logical adjacency）
+
+注意層次：**節點 = 機房（容器）**，**peer 是機房內的設備（switch 等）之間的邏輯鄰居**，
+**fiber 是機房之間的實體光纖**。
 
 把這些寫成一個 JSON 檔，**透過 docker volume mount 蓋掉 image 內建的那個**。
 
@@ -134,9 +163,9 @@ docker run -d --init --rm -p 8000:8000 \
 ```json
 {
   "nodes": [
-    {"id": "DC-TPE",  "label": "DC-TPE",  "type": "switch", "x": 100, "y": 100},
-    {"id": "DC-TCH",  "label": "DC-TCH",  "type": "switch", "x": 400, "y": 100},
-    {"id": "DC-KHH",  "label": "DC-KHH",  "type": "switch", "x": 250, "y": 350}
+    {"id": "DC-TPE",  "label": "DC-TPE",  "type": "container", "x": 100, "y": 100},
+    {"id": "DC-TCH",  "label": "DC-TCH",  "type": "container", "x": 400, "y": 100},
+    {"id": "DC-KHH",  "label": "DC-KHH",  "type": "container", "x": 250, "y": 350}
   ],
   "edges": [
     {"id": "F-TPE-TCH", "source": "DC-TPE", "target": "DC-TCH", "label": "TPE-TCH", "length_km": 8.5},
@@ -155,10 +184,10 @@ docker run -d --init --rm -p 8000:8000 \
 
 | 區塊 | 必填欄位 | 意義 |
 |------|----------|------|
-| `nodes[]` | `id`（unique 字串）、`label`、`type`、`x`、`y` | 一個機房 / 容器。`x`、`y` 是 UI 上的座標（建議 0–800 之間挑容易看清楚的數字） |
-| `edges[]` | `id`（unique）、`source`、`target` | 一條實體光纖。`source`、`target` 必須是 `nodes[].id` 之一 |
+| `nodes[]` | `id`（unique 字串）、`label`、`type`、`x`、`y` | 一個**容器**（datacenter），裡面實際上裝著 switch / router 等 device。`type` 用 `container`。`x`、`y` 是 UI 上的座標（建議 0–800 之間挑容易看清楚的數字） |
+| `edges[]` | `id`（unique）、`source`、`target` | 一條**機房之間的實體光纖**。`source`、`target` 必須是 `nodes[].id` 之一 |
 | `edges[]` | `length_km`（option，預設 1.0） | fiber 長度，給 length-prior 用 |
-| `baseline_neighbors[]` | `a`、`b` | 一對「平常**應該**有 OSPF/BFD/BGP adjacency」的 device-pair。可以重複（同一對 container 多次 = 多個 device pair 共用這個 container channel） |
+| `baseline_neighbors[]` | `a`、`b` | 一對「平常**應該**有 logical adjacency」的 peer。Adjacency 是兩個機房內 device 之間建立的（typically OSPF/BFD/BGP/IS-IS 等任一種協定），跟我們 paper 的物理光纖路徑層**不同層**。可以重複（同一對機房之間有多對 device 邏輯鄰居就重複放） |
 
 > 注意：兩個 container 之間可以有**多條**平行 fiber edge（不同 `id` 但同樣
 > `source`/`target`），這正是論文允許的 model。
@@ -170,7 +199,7 @@ docker run -d --init --rm \
     -p 8000:8000 \
     -v /home/coolguazi/my_topology.json:/app/data/topology.json:ro \
     --name fiber-cut-localizer \
-    coolguazi/fiber-cut-localizer:1.0
+    coolguazi/fiber-cut-localizer:2.0
 ```
 
 關鍵那一行 `-v`：
@@ -199,12 +228,12 @@ container 裡 `/app/data/topology.json`，由於你 mount 上去了，reset 也�
 
 ```bash
 # 啟動（內建範例）
-docker run -d --init --rm -p 8000:8000 --name fcl coolguazi/fiber-cut-localizer:1.0
+docker run -d --init --rm -p 8000:8000 --name fcl coolguazi/fiber-cut-localizer:2.0
 
 # 啟動（自家拓樸）
 docker run -d --init --rm -p 8000:8000 \
     -v $PWD/my_topology.json:/app/data/topology.json:ro \
-    --name fcl coolguazi/fiber-cut-localizer:1.0
+    --name fcl coolguazi/fiber-cut-localizer:2.0
 
 # 用瀏覽器
 open http://localhost:8000/
@@ -226,11 +255,29 @@ docker pull coolguazi/fiber-cut-localizer:latest
 | 項目 | 值 |
 |------|------|
 | Repository | `coolguazi/fiber-cut-localizer` |
-| Tag | `1.0` / `latest` |
+| Tag | `2.0` / `latest`（同一個 digest） |
+| Digest | `sha256:fdef9f895964006adfa2c5b8651bbd0133e0e1a18d3a66e259eeecae6f4d5eed` |
 | Platform | `linux/amd64` |
-| Size | 41 MB |
-| Base | `python:3.12-alpine` |
-| CVE | 0 critical / 0 high / 0 medium / 0 low |
-| Runtime user | `app` (uid 10001) |
+| Size | 39 MB 下載 / 174 MB 解壓後佔磁碟 |
+| Base | `python:3.12-alpine`（Alpine 3.24.1、Python 3.12.13）|
+| CVE | 0 critical / 0 high / 0 medium / 0 low（Trivy 0.69 與 Docker Scout 雙掃，2026-08-04）|
+| Runtime user | `app` (uid 10001)，非 root |
 | Exposed port | 8000 |
 | Healthcheck | 內建（`python urllib` 戳 `/health`） |
+
+要自己複驗 CVE：
+
+```bash
+trivy image --platform linux/amd64 coolguazi/fiber-cut-localizer:2.0
+docker scout cves --platform linux/amd64 coolguazi/fiber-cut-localizer:2.0
+```
+
+### 2.0 相對 1.2 改了什麼
+
+- 新增 **Timeline** 分頁並取代原本的 Live Alarms：操作者自己拖時間窗決定 D，
+  而不是由系統的 incident 視窗替你決定
+- 新增 `/api/timeline/density`、`/api/timeline/select`、`/api/timeline/bursts`
+- log 型別支援 `INT_DOWN`（兩端 hostname 的邏輯鄰居關係）
+- scoring engine 內部改寫成稀疏累加 + 路徑列舉快取，26 節點 / 915 對 peer
+  的完整 joint MLE 從數十秒降到約 0.16 秒，拖曳時才有辦法即時重算
+- 修正同一組設備之間有多條不同 interface 鄰居關係時，D 被錯誤合併的問題
