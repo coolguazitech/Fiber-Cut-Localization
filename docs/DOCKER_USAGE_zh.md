@@ -27,7 +27,7 @@ docker --version   # 確認有
 docker run -d --init --rm \
     -p 8000:8000 \
     --name fiber-cut-localizer \
-    coolguazi/fiber-cut-localizer:2.0
+    coolguazi/fiber-cut-localizer:2.2
 ```
 
 逐字解釋：
@@ -47,33 +47,60 @@ docker run -d --init --rm \
 畫面跟 local dev mode 完全一樣。預設進入 **Timeline** 分頁：
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│ IFDOWN 密度帶狀條（橫跨整個寬度，中央有固定選取窗）              │
-├───────────────────────────────────┬─┬────────────────────────┤
-│                                   │▏│ Probable cut FIBER-...  │
-│                                   │▏├────────────────────────┤
-│          拓樸圖                     │▏│ Top 10 suspects        │
-│          (React Flow)             │▏├────────────────────────┤
-│                                   │▏│[Components][Rest.][Log]│
-└───────────────────────────────────┴─┴────────────────────────┘
-                                     ↑ 左右拖曳調整比例
+┌────────────────────────────────────────────────────────────────┐
+│ [LIVE] window 1m  ◀ 3 bursts ▶   05:23:42 – 05:24:42       [?] │
+│ ▁▂▁▁ ▁▃█▇█▅▂ ▁▁  ║        ║  ▁▁▃█▆▃▁ ▁▁▁▂▁▁                    │
+├─────────────────────────────────┬─┬────────────────────────────┤
+│                                 │▏│ TOP 10 SUSPECTS            │
+│          拓樸圖                   │▏├────────────────────────────┤
+│          (React Flow)           │▏│ [Rescue priority][Raw log] │
+│                                 │▏│  CRITICAL  r1 ↮ r2  6/6    │
+│                                 │▏│  HIGH      r3 ↮ r4  2/2    │
+├─────────────────────────────────┴─┴────────────────────────────┤
+│ Probable cut  FIBER-0021  DC4 ↔ DC9  87%  [clear winner]       │
+│ 62 down peers / 795 · 9 sites affected                         │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 操作邏輯只有一句話：**帶狀條中央那個窗框住的時間區間，就是演算法拿來定位的
 DOWN 集合 D**。窗移到哪，排名就跟著重算。
 
+### 帶狀條
+
 - 拖帶狀條移動時間；拖窗的左右邊緣改變窗寬；滾輪縮放視野
-- 右上 `LIVE` 把窗釘在最新的 log 上；一拖拉就自動脫離
-- 帶狀條上淡色底帶是系統自動偵測到的 burst，點一下直接 snap 過去
+- `LIVE` 把窗釘在最新的 log 上；一拖拉就自動脫離
+- **`◀ N bursts ▶` 直接跳到偵測到的 log 突增區間**，不用自己拉。偵測是速率
+  相對於背景的跳升（不是單純找最密的窗），純均勻雜訊不會誤報
 - 橘色的 bar 是 unmapped（設備不在 baseline N 裡）—— 會顯示但不進 D
+
+### 判定條（永遠不收合）
+
+橫在最下方，只放兩件事：**斷哪條 + 確定度**、**影響範圍**。`ambiguous` 代表
+top-1 跟第二名太接近，很可能落在等價類裡，得帶 OTDR 現場處理。
+
+### 右側細節
+
+- **Top 10 suspects** 常駐
+- **Rescue priority** — 以**設備視角**排出先搶救誰。`6/6 全斷` 比 `1/4 降級`
+  嚴重，`完全沒有備援路徑` 又壓過規模。每一列展開後有：排序依據的逐項拆解、
+  斷掉的 interface 清單、**該設備兩跳範圍的鄰居關係圖**、可點選的 restore
+  path（點了直接畫在拓樸圖上）、以及跳到該設備 log 的捷徑
+- **Raw log** — 窗內每一筆 INT_DOWN，可用設備／interface／站點模糊搜尋；
+  從 Rescue priority 跳過來會自動帶入設備並提供返回
+
+> **排序依據的限制（介面上也會標示）**：目前只看得到**結構**訊號——斷了多少
+> 比例、能不能繞。hostname 跟 interface 名稱裡沒有任何資訊指出哪些是 IPL、
+> keepalive 或 uplink，所以**角色重要性不在排序裡**。要納入的話得從網管餵入
+> interface description 或設備角色欄位；評分層已經預留可註冊的 signal 介面，
+> 屆時接上 AI 判斷或自訂規則不用動 UI。
 
 另一個分頁 **Research Lab** 是原本的研究介面（Topology Generator、Cut
 simulate、Peer Inspector、Ranking），全部保留。
 
 > **給第一次試的人**：內建那張 8 機房 / 15 對 peer 的範例網**太稀疏**，
 > 演算法在上面本來就常常猜錯，別誤以為壞了。先切到 Research Lab 分頁，用
-> Topology Generator 拉出 26 節點 / 700 對 peer 左右的拓樸，再切回 Timeline
-> 就會看到它穩定命中。或者直接照 ⑨ 掛上你自己的拓樸。
+> Topology Generator 拉出 18 節點 / 500 對 peer 左右的拓樸，再切回 Timeline
+> 就會看到它穩定命中，搶救清單跟鄰居圖也才有東西可看。
 
 ## ③ 確認跑得起來（option，自我健檢）
 
@@ -104,7 +131,7 @@ docker stop fiber-cut-localizer
 ```bash
 docker run -d --init --rm -p 9090:8000 \
     --name fiber-cut-localizer \
-    coolguazi/fiber-cut-localizer:2.0
+    coolguazi/fiber-cut-localizer:2.2
 ```
 
 然後開 <http://localhost:9090/>（左邊改成你想用的 port、右邊永遠保持 `8000`，
@@ -119,7 +146,7 @@ docker run -d --init --rm -p 9090:8000 \
 ```bash
 docker run -d --init --rm -p 0.0.0.0:8000:8000 \
     --name fiber-cut-localizer \
-    coolguazi/fiber-cut-localizer:2.0
+    coolguazi/fiber-cut-localizer:2.2
 ```
 
 差別只是把 host 端從預設 `127.0.0.1` 換成 `0.0.0.0`（聽所有網卡）。
@@ -199,7 +226,7 @@ docker run -d --init --rm \
     -p 8000:8000 \
     -v /home/coolguazi/my_topology.json:/app/data/topology.json:ro \
     --name fiber-cut-localizer \
-    coolguazi/fiber-cut-localizer:2.0
+    coolguazi/fiber-cut-localizer:2.2
 ```
 
 關鍵那一行 `-v`：
@@ -228,12 +255,12 @@ container 裡 `/app/data/topology.json`，由於你 mount 上去了，reset 也�
 
 ```bash
 # 啟動（內建範例）
-docker run -d --init --rm -p 8000:8000 --name fcl coolguazi/fiber-cut-localizer:2.0
+docker run -d --init --rm -p 8000:8000 --name fcl coolguazi/fiber-cut-localizer:2.2
 
 # 啟動（自家拓樸）
 docker run -d --init --rm -p 8000:8000 \
     -v $PWD/my_topology.json:/app/data/topology.json:ro \
-    --name fcl coolguazi/fiber-cut-localizer:2.0
+    --name fcl coolguazi/fiber-cut-localizer:2.2
 
 # 用瀏覽器
 open http://localhost:8000/
@@ -255,12 +282,12 @@ docker pull coolguazi/fiber-cut-localizer:latest
 | 項目 | 值 |
 |------|------|
 | Repository | `coolguazi/fiber-cut-localizer` |
-| Tag | `2.0` / `latest`（同一個 digest） |
-| Digest | `sha256:fdef9f895964006adfa2c5b8651bbd0133e0e1a18d3a66e259eeecae6f4d5eed` |
+| Tag | `2.2` / `latest`（同一個 digest） |
+| Digest | `sha256:637ad21b96fbf1138389514884f7f2db5adf73985c7642b4446917a0daba6c66` |
 | Platform | `linux/amd64` |
 | Size | 39 MB 下載 / 174 MB 解壓後佔磁碟 |
 | Base | `python:3.12-alpine`（Alpine 3.24.1、Python 3.12.13）|
-| CVE | 0 critical / 0 high / 0 medium / 0 low（Trivy 0.69 與 Docker Scout 雙掃，2026-08-04）|
+| CVE | 0 critical / 0 high / 0 medium / 0 low（Trivy 0.69 與 Docker Scout 雙掃，2026-08-05）|
 | Runtime user | `app` (uid 10001)，非 root |
 | Exposed port | 8000 |
 | Healthcheck | 內建（`python urllib` 戳 `/health`） |
@@ -268,9 +295,20 @@ docker pull coolguazi/fiber-cut-localizer:latest
 要自己複驗 CVE：
 
 ```bash
-trivy image --platform linux/amd64 coolguazi/fiber-cut-localizer:2.0
-docker scout cves --platform linux/amd64 coolguazi/fiber-cut-localizer:2.0
+trivy image --platform linux/amd64 coolguazi/fiber-cut-localizer:2.2
+docker scout cves --platform linux/amd64 coolguazi/fiber-cut-localizer:2.2
 ```
+
+### 2.2 相對 2.0 改了什麼
+
+- **Rescue priority** 取代原本的 Components / Restoration 兩個分頁：以設備對
+  為單位排出搶救優先序，restore path 與相關 log 都從該列往下鑽
+- 每列可展開**兩跳鄰居關係圖**，看得出災情是侷限在本地還是往外擴散
+- 帶狀條新增 **burst 自動偵測與 `◀ ▶` 導航**
+- 排序改成可註冊的 signal 介面，日後接 AI 或自訂規則不需改 UI
+- 模擬切纖時顯示**答案對照**（你切的 vs 演算法猜的），miss 會標示名次
+- Topology Generator 的設備池改為自動計算，讓每台設備帶有數條鄰居關係
+  （原本固定 100 台/機房，導致 peer 圖退化成一對一配對、鄰居圖是空的）
 
 ### 2.0 相對 1.2 改了什麼
 
