@@ -1,0 +1,407 @@
+# 光纖斷點定位 — 部署與維護說明書
+
+版本 **4.0** · `linux/amd64` · 映像檔 37.9 MB · 弱點掃描 CRITICAL 0 / HIGH 0
+
+這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
+不需要讀程式碼，也不需要裝 Python 或 Node。
+
+---
+
+## 你要準備什麼
+
+| 東西 | 要不要 | 說明 |
+|---|---|---|
+| 一台 x86_64 的 Linux，裝了 Docker | **要** | 其他什麼都不用 |
+| 光纖圖 CSV | **要** | 哪兩個 DC 之間有實體光纖 |
+| 設備清單 CSV | **要** | 每一台設備在哪個 DC |
+| 網管 API 網址與 token | **要** | 系統自己去撈設備之間的連線 |
+| log 來源 | **不用** | 這一版的 log 由內建模擬器產生 |
+
+> **log 是模擬的，但不是亂編的。**
+>
+> 光纖圖、設備清單、邏輯連線全都是真的 —— 前兩份你匯入，邏輯連線是網管撈回來的。
+> 模擬器只補上一件網管不會告訴你的事：**每一條邏輯連線實際上繞哪幾段光纖**。
+> 那一件抽出來之後，「切這一條會斷哪些連線、產生哪些 log」全部是推導出來的。
+>
+> 抽出來的走法可以在畫面上整張列出來檢查（示範資料 → 看模擬走法），
+> 事後也能反過來看「這個斷點切斷了每一條斷線的哪一段」（細節頁 → 斷點如何影響）。
+
+---
+
+## 名詞對照
+
+看畫面之前先對一下，這三個詞指的是不同層級的東西：
+
+| 詞 | 指什麼 |
+|---|---|
+| **DC** | 廠區裡的機房 |
+| **光纖** | DC 與 DC 之間的實體光纖（你匯入的那份圖） |
+| **邏輯連線** | 設備與設備之間的連線（網管撈回來的），一條邏輯連線會繞經好幾段光纖 |
+| **Event** | 系統把一波 log 收成的一件事，有編號、可以認領結案，永久保存 |
+
+---
+
+# 第一部分：部署
+
+## 步驟 1　確認主機
+
+```bash
+uname -m          # 要看到 x86_64
+docker --version  # 20.10 以上就夠
+```
+
+沒有 Docker 的話：
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
+```
+
+## 步驟 2　取得映像檔
+
+**A. 主機連得到網路**
+
+```bash
+docker pull coolguazi/fiber-cut-localizer:4.0
+```
+
+**B. 主機連不到外網**（多數公司內網是這種）
+
+在家裡／有網路的機器上：
+
+```bash
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.0
+docker save coolguazi/fiber-cut-localizer:4.0 | gzip > fcl-4.0.tar.gz
+```
+
+把 `fcl-4.0.tar.gz` 拷到公司主機（約 15 MB），然後：
+
+```bash
+gunzip -c fcl-4.0.tar.gz | docker load
+```
+
+## 步驟 3　建立兩個檔案
+
+開一個目錄，裡面只放這兩個檔：
+
+```bash
+mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
+```
+
+### `docker-compose.yml`
+
+```yaml
+services:
+  app:
+    image: coolguazi/fiber-cut-localizer:4.0
+    container_name: fiber-cut-localizer
+    restart: unless-stopped
+    ports:
+      - "8000:8000"          # 要換 port 只改左邊那個數字
+    env_file: .env
+    volumes:
+      - fcl-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  fcl-data:
+```
+
+> **`fcl-data` 這一行不能省。** 匯入的資料、所有 Event 歷史、每日 log 都住在裡面。
+> 少了它，每次重建容器都要重新設定一次，而且結過案的 Event 會全部消失 ——
+> 那是這套系統少數重建不回來的東西。
+
+### `.env`
+
+第一次先照抄。網管那兩行留白也能跑（會用內建的示範網），確認畫面正常之後再填。
+
+```bash
+# ── 網管 API ────────────────────────────────────────────────
+NMS_BASELINE_URL=
+NMS_AUTH_TOKEN=
+NMS_AUTH_HEADER=               # 網管不是 Bearer 時，整個 header 自己給
+NMS_POLL_INTERVAL=86400        # 多久自己重讀一次，秒。預設一天
+NMS_TIMEOUT=10
+NMS_CONCURRENCY=8
+
+# ── 資料保留 ────────────────────────────────────────────────
+LOG_RETENTION_DAYS=7           # log 留幾天。Event 是永久的，不受這個影響
+
+# ── 示範資料 ────────────────────────────────────────────────
+DEMO_MODE=1                    # 這一版的 log 來源，保持 1
+
+# ── 其他 ────────────────────────────────────────────────────
+DEFAULT_PRODUCT=FAB
+LOG_LEVEL=INFO
+```
+
+## 步驟 4　啟動
+
+```bash
+docker compose up -d
+docker compose ps        # STATUS 要看到 healthy
+```
+
+## 步驟 5　打開瀏覽器
+
+```
+http://<主機IP>:8000/
+```
+
+第一次進去是設定精靈，共四步。
+
+---
+
+# 第二部分：第一次設定（跟著精靈走）
+
+## 5-1　匯入光纖圖
+
+CSV，兩欄，一行一條光纖：
+
+```csv
+site_a,site_b
+71DC1,71DC2
+71DC1,71DC3
+71DC2,71DC3
+```
+
+**這份檔案同時定義了「有哪些 DC」**，第 2 步會逐行對照它。
+
+## 5-2　匯入設備清單
+
+CSV，`role` 欄可有可無：
+
+```csv
+hostname,dc,role
+RT71P1-71P1Z1Y03-1-21-FAB-CORE,71DC1,core
+SW71P1-GBD07-25-15-EQP,71DC1,access
+AGG-DC2-01,71DC2,access
+```
+
+> **`dc` 欄不能空。** 系統不會從設備名稱去猜它在哪個 DC —— 猜錯一台，
+> 它斷線時就會算到別的 DC，找出來的斷點也跟著錯。
+
+每一步都是**先預覽再確認**，按取消是真的什麼都沒發生。
+
+## 5-3　讀取網管
+
+按一下，系統會逐台去問網管、算出設備之間有哪些連線。
+
+沒填 `NMS_BASELINE_URL` 時，畫面會直接說「還沒有網管可以問」——
+那是正常的，可以先跳過往下走。
+
+撈完會給一份**撈取報告**：問到幾台、哪幾台查無此設備、哪幾台查得到但沒有任何
+已接線的介面、網管回報了幾台清單上沒有的設備。
+
+> **這份報告不要跳過。** 它是唯一會講出「有幾條連線沒被算進來」的地方。
+> 少算的那幾條在斷線時系統看不到，反而會被當成「這條光纖沒事」的理由。
+
+## 5-4　大功告成
+
+第四步是總覽：幾條光纖、幾台設備、幾對邏輯連線、每個 DC 幾台。
+數字對了就按 **「開始監看 →」**。
+
+---
+
+# 第三部分：走一次完整流程（確認它真的能用）
+
+## 6-1　製造一次斷纖
+
+主畫面右下角有一顆小小的 **「示範資料」**，點開是一個彈出視窗。
+
+1. 「切斷」選一條光纖（或留「隨機挑一條」）
+2. 建議先按 **「看模擬走法」** —— 那是整套模擬唯一隨機的東西，
+   會列出每一條邏輯連線繞哪幾段光纖。選了光纖之後，會被它切斷的那幾列標紅
+3. 按 **「✂ 切下去」**
+
+> 同一份光纖圖與設備清單抽出來的走法固定不變（畫面上有指紋可以核對），
+> 重開服務也是同一張 —— 所以示範講到一半重切一次，出現的是同一批設備、
+> 同一個答案。
+
+## 6-2　等 30 秒
+
+最後一筆 log 之後再 25 秒沒有新的，系統就把這一波收成一個 **Event**，
+配一個編號（例如 `FAB-260922-001`），算出最可能的斷點並存下來。
+
+主畫面清單會出現這一列。斷線少於 3 條不會開 Event（會歸到「規模太小」那一頁）。
+
+## 6-3　點進去看
+
+細節頁應該有這些：
+
+* **左側**：光纖圖，斷點用紅色虛線標出來
+* **左下**：前 10 名嫌疑與分數
+* **上方**：時間軸，可以框選任一段重新計算
+* **底部**：結論帶 —— `最可能的斷點 FIBER-… 100% 證據充分 · 斷線 29 條 / 82 · 影響 9 個 DC`
+
+中間有三個分頁：
+
+| 分頁 | 看什麼 |
+|---|---|
+| 受影響的現場 | 一張設備地圖，紅線是斷掉的邏輯連線。鄰居越多的設備群越靠中心 |
+| **斷點如何影響** | 每一條斷線攤開，標出這個斷點切斷了它走法上的第幾段 |
+| 原始 log | 這段區間內的每一筆 |
+
+「斷點如何影響」長這樣：
+
+```
+RT71P3-…  Eth1/8 ↔ RT71P4-…  Eth1/1     71DC3 → 71DC4     共 4 段 · 斷在第 1 段
+【FIBER-71DC2-71DC3】 → FIBER-71DC1-71DC2 → FIBER-71DC1-71DCA → FIBER-71DC4-71DCA
+```
+
+結論帶給的是**答案**，這一頁給的是**解釋**。派工出去挖一條光纖之前，
+「為什麼是這一條」不該只是一個要相信的數字。
+
+看到這些，就表示這台機器上的東西是完整的。
+
+---
+
+# 第四部分：接上真實網管
+
+填 `.env` 的兩行：
+
+```bash
+NMS_BASELINE_URL=https://你們的網管/api/dcim/devices/
+NMS_AUTH_TOKEN=你們的token
+```
+
+```bash
+docker compose up -d       # 重新套用 .env
+```
+
+然後到設定頁按 **「← 重新讀取網管」**，看那份撈取報告。
+
+系統打的請求（`GET`，帶 `Authorization: Bearer <token>`）：
+
+```
+{NMS_BASELINE_URL}?include_interfaces=true&is_active=true&offset=0&limit=100&hostname=<主機名>
+```
+
+期望回來的形狀（NetBox 相容）：
+
+```json
+{"count": 1, "results": [{"name": "RT71P1-…", "interfaces": [
+  {"name": "Eth1/1", "status": {"name": "Up"},
+   "cable": {"termination_a": {"device": {"name": "RT71P1-…"}, "name": "Eth1/1"},
+             "termination_b": {"device": {"name": "RT71P2-…"}, "name": "Eth2/3"}}}
+]}]}
+```
+
+不是這個形狀的話要改解析程式，找開發者處理。
+
+---
+
+# 第五部分：維護
+
+## 資料留多久
+
+| | 留多久 | 存在哪 |
+|---|---|---|
+| log | **7 天**（`LOG_RETENTION_DAYS`），每天 04:00 刪掉過期的整天 | `/data/<單位>/logs/YYYY-MM-DD.jsonl` |
+| Event | **永久，沒有數量上限** | `/data/<單位>/alerts/<編號>.json`，一件一個檔 |
+| Event 裡的 log | 跟著 Event 永久保存 | 同上 |
+
+Event 收斂的那一刻，會把它那段時窗的全部 log 抄一份進去。
+所以半年後點開一件舊 Event，畫面會標明「這是當時留下的紀錄」，
+然後照常畫出當時的斷點、地圖與排名 —— 即使原始的每日 log 檔早就被清掉。
+
+查目前的保留狀況：
+
+```bash
+curl -s http://localhost:8000/api/topology/retention
+```
+
+## 日常指令
+
+```bash
+docker compose logs -f              # 看服務在做什麼
+docker compose restart              # 重開（資料都在）
+docker compose down                 # 停掉（資料都在）
+docker compose down -v              # 停掉並刪掉所有資料 ← 小心
+```
+
+## 備份
+
+Event 歷史重建不回來，建議排程備份：
+
+```bash
+docker run --rm -v fcl-data:/data -v "$PWD":/out alpine \
+  tar czf /out/fcl-backup-$(date +%F).tar.gz -C /data .
+```
+
+還原：
+
+```bash
+docker run --rm -v fcl-data:/data -v "$PWD":/in alpine \
+  tar xzf /in/fcl-backup-2026-09-22.tar.gz -C /data
+```
+
+## 升級
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+`/data` 不會動。舊版的單一 `alerts.json` 會在啟動時自動拆成一件一個檔，
+原檔改名成 `alerts.json.migrated` 保留著，不會刪。
+
+## 換 port
+
+`docker-compose.yml` 裡 `"8000:8000"` 改左邊那個數字，例如 `"9000:8000"`，
+然後 `docker compose up -d`。
+
+---
+
+# 第六部分：出問題怎麼查
+
+先跑這三行：
+
+```bash
+docker compose ps
+docker compose logs --tail 100
+curl -s http://localhost:8000/api/topology/status
+```
+
+| 症狀 | 多半是 | 怎麼辦 |
+|---|---|---|
+| 網頁連不上 | port 被佔或防火牆 | `ss -tlnp \| grep 8000`；換 port |
+| 畫面打得開但時間軸空的 | 沒按「開始監看」 | 主畫面左上角那顆大按鈕，要顯示「log 收集中」 |
+| 切了光纖沒開出 Event | 斷線條數沒過門檻 | 主畫面底部「Event 的認定條件」會說出目前的門檻 |
+| 切了光纖完全沒有 log | 那一刀沒有任何走法經過 | 示範面板會直接說；換一條，或先看「看模擬走法」挑承載多的 |
+| 撈取報告說一堆設備查無 | 設備清單過時 | 重新匯出一份清單再匯入 |
+| 定位結果怪怪的 | 邏輯連線少算了 | 看撈取報告的「網管回報了 N 台清單上沒有的設備」，把它們補進清單 |
+
+容器起不來時看完整錯誤：
+
+```bash
+docker logs fiber-cut-localizer
+```
+
+---
+
+# 一頁速查
+
+```bash
+# 第一次
+mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
+# 建立 docker-compose.yml 與 .env（內容見步驟 3）
+docker compose up -d
+# 瀏覽器開 http://<主機IP>:8000/ ，跟著精靈走完四步
+# 主畫面右下角「示範資料」→ 看模擬走法 → 切下去 → 等 30 秒 → 點開 Event
+
+# 接真實網管
+vi .env                     # 填 NMS_BASELINE_URL 與 NMS_AUTH_TOKEN
+docker compose up -d
+# 設定頁 →「← 重新讀取網管」→ 看撈取報告
+
+# 日常
+docker compose logs -f
+docker compose pull && docker compose up -d      # 升級
+docker run --rm -v fcl-data:/data -v "$PWD":/out alpine \
+  tar czf /out/fcl-backup-$(date +%F).tar.gz -C /data .   # 備份
+```
