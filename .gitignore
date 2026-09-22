@@ -39,3 +39,6 @@ pyproject.toml
 
 # Prototype app (separate, do not commit here)
 prototype/
+
+# 維運主控台的源碼 —— 只留在本機，不進這個公開 repo
+prototype_old/
