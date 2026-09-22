@@ -65,6 +65,15 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 docker pull coolguazi/fiber-cut-localizer:4.0
 ```
 
+> 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
+> 如果你在 Apple Silicon 的 Mac 上試拉，會看到
+> `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
+>
+> ```bash
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.0
+> docker run --platform linux/amd64 …
+> ```
+
 **B. 主機連不到外網**（多數公司內網是這種）
 
 在家裡／有網路的機器上：
