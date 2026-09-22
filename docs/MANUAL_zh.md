@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **4.1** · `linux/amd64` · 離線檔 37.7 MB · 弱點掃描 CRITICAL 0 / HIGH 0
+版本 **4.2** · `linux/amd64` · 離線檔 37.7 MB · 弱點掃描 CRITICAL 0 / HIGH 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -8,7 +8,7 @@
 系統名稱可以自己改（`.env` 的 `APP_NAME`），預設是 Optiview。
 
 <details>
-<summary>4.1 這一版改了什麼</summary>
+<summary>4.1 / 4.2 這兩版改了什麼</summary>
 
 - **「斷點如何影響」改成一對設備一張卡片。** 同一對之間有好幾個連接埠時，
   重複的主機名收進標題，卡片內一列是一條不同的走法。
@@ -17,6 +17,9 @@
 - **現場地圖改成樹狀。** 樞紐在最上面往下一層一層展開，往下一層就是往外一跳，
   同一層的設備保證不重疊。遠看只畫骨架與紅色斷線，放大或點某台才展開細節。
 - **系統名稱與時區可以在啟動時設定**（`APP_NAME`、`TZ`，見 `.env`）。
+- **4.2**：`.env` 把註解寫在 `=` 同一行時，那段註解不會再被當成認證標頭送給
+  網管（以前會讓每一台設備都查詢失敗）。系統日誌會直接指出是哪一個變數。
+- **4.2**：第 3 步「讀取網管」失敗時，可以直接退回去換一份 CSV。
 
 </details>
 
@@ -77,7 +80,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:4.1
+docker pull coolguazi/fiber-cut-localizer:4.2
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -85,7 +88,7 @@ docker pull coolguazi/fiber-cut-localizer:4.1
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.1
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.2
 > docker run --platform linux/amd64 …
 > ```
 
@@ -94,14 +97,14 @@ docker pull coolguazi/fiber-cut-localizer:4.1
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.1
-docker save coolguazi/fiber-cut-localizer:4.1 | gzip > fcl-4.1.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.2
+docker save coolguazi/fiber-cut-localizer:4.2 | gzip > fcl-4.2.tar.gz
 ```
 
-把 `fcl-4.1.tar.gz` 拷到公司主機（約 15 MB），然後：
+把 `fcl-4.2.tar.gz` 拷到公司主機（約 38 MB），然後：
 
 ```bash
-gunzip -c fcl-4.1.tar.gz | docker load
+gunzip -c fcl-4.2.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -117,7 +120,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:4.1
+    image: coolguazi/fiber-cut-localizer:4.2
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
@@ -150,25 +153,38 @@ volumes:
 
 ```bash
 # ── 網管 API ────────────────────────────────────────────────
+# NMS_BASELINE_URL 一定要填，其餘視網管而定
 NMS_BASELINE_URL=
 NMS_AUTH_TOKEN=
-NMS_AUTH_HEADER=               # 網管不是 Bearer 時，整個 header 自己給
-NMS_POLL_INTERVAL=86400        # 多久自己重讀一次，秒。預設一天
+# 網管不是 Bearer 時，用 NMS_AUTH_HEADER 直接給整個 header 的值
+NMS_AUTH_HEADER=
+# 多久自己重讀一次，秒。預設一天
+NMS_POLL_INTERVAL=86400
 NMS_TIMEOUT=10
 NMS_CONCURRENCY=8
 
 # ── 資料保留 ────────────────────────────────────────────────
-LOG_RETENTION_DAYS=7           # log 留幾天。Event 是永久的，不受這個影響
+# log 留幾天。Event 是永久的，不受這個影響
+LOG_RETENTION_DAYS=7
 
 # ── 示範資料 ────────────────────────────────────────────────
-DEMO_MODE=1                    # 這一版的 log 來源，保持 1
+# 這一版的 log 來源，保持 1
+DEMO_MODE=1
 
 # ── 其他 ────────────────────────────────────────────────────
-APP_NAME=Optiview              # 畫面左上角的系統名稱。改了重啟就生效
-TZ=Asia/Taipei                 # 畫面與每日 log 檔名用的時區。不設會變成 UTC
+# 畫面左上角的系統名稱。改了重啟就生效
+APP_NAME=Optiview
+# 畫面與每日 log 檔名用的時區。不設會變成 UTC
+TZ=Asia/Taipei
 DEFAULT_PRODUCT=FAB
 LOG_LEVEL=INFO
 ```
+
+> **註解要自己一行，不可以寫在 `=` 後面。**
+> Docker Compose 讀 `.env` 時**不會**把 `#` 之後的字當成註解 —— `=` 右邊整行
+> 都是值。寫成 `NMS_AUTH_HEADER=  # 說明文字` 的話，那句說明文字就會被當成
+> 認證標頭送給網管，然後每一台設備都查詢失敗，而錯誤訊息
+> （`'ascii' codec can't encode characters…`）完全看不出問題在這一行。
 
 ## 步驟 4　啟動
 
@@ -470,6 +486,7 @@ curl -s http://localhost:8000/api/topology/nms-probe | python3 -m json.tool
 | 卡在 | 意思 | 要做什麼 |
 |---|---|---|
 | 設定 | `NMS_BASELINE_URL` 沒填 | 填 `.env`，`docker compose up -d` |
+| 設定 | 每一台都失敗，訊息是 `'ascii' codec can't encode characters…` | `.env` 有一行把註解寫在 `=` 後面，整段註解被當成值送出去了。把註解移到上一行再重啟。系統日誌會直接指出是哪一個變數 |
 | 連線 | DNS 解不出來 / TLS 不被信任 / 防火牆 | 在**容器裡**試：`docker compose exec app python -c "import httpx;print(httpx.get('<網管URL>').status_code)"` |
 | HTTP 狀態 401/403 | token 不對、過期、範圍不足 | 換 token；網管不是 Bearer 就用 `NMS_AUTH_HEADER` 給整個 header |
 | HTTP 狀態 404 | URL 路徑不對（常見：少了結尾斜線） | 對照網管的 API 文件 |
