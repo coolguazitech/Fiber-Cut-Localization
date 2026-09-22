@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **4.6** · `linux/amd64` · 離線檔 37.7 MB · 弱點掃描 CRITICAL 0 / HIGH 0
+版本 **4.7** · `linux/amd64` · 離線檔 37.7 MB · 弱點掃描 CRITICAL 0 / HIGH 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -8,7 +8,7 @@
 系統名稱可以自己改（`.env` 的 `APP_NAME`），預設是 Optiview。
 
 <details>
-<summary>4.1 – 4.6 改了什麼</summary>
+<summary>4.1 – 4.7 改了什麼</summary>
 
 - **「斷點如何影響」改成一對設備一張卡片。** 同一對之間有好幾個連接埠時，
   重複的主機名收進標題，卡片內一列是一條不同的走法。
@@ -33,6 +33,11 @@
   光纖圖。現場圖被點到、被牽連、或拉近之後，主機名完整顯示不再截斷。
 - **4.6**：現場圖點一台設備時，**沒斷線的鄰居也會把圓圈點亮**（灰白外圈，
   不長名字）—— 告訴你還有哪幾台連著、游標可以往哪裡移，而不必掃過整張圖。
+- **4.7**：「斷點如何影響」**不再畫實體走法**。真實部署沒有這份資料（網管只說
+  兩端相連，不說中間怎麼繞），那是示範模式自己抽的。這一頁現在只回答
+  「斷了之後還能怎麼走」：一對 peer 一張卡片，點開看替代路徑。
+- **4.7**：原始 log 多一顆**匯出 CSV**，匯出的是畫面上這一份（含搜尋條件），
+  拿回自己的機器怎麼分析都行。現場圖拿掉了「看某台設備的 log」的入口。
 
 </details>
 
@@ -93,7 +98,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:4.6
+docker pull coolguazi/fiber-cut-localizer:4.7
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -101,7 +106,7 @@ docker pull coolguazi/fiber-cut-localizer:4.6
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.6
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.7
 > docker run --platform linux/amd64 …
 > ```
 
@@ -110,14 +115,14 @@ docker pull coolguazi/fiber-cut-localizer:4.6
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.6
-docker save coolguazi/fiber-cut-localizer:4.6 | gzip > fcl-4.6.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.7
+docker save coolguazi/fiber-cut-localizer:4.7 | gzip > fcl-4.7.tar.gz
 ```
 
-把 `fcl-4.6.tar.gz` 拷到公司主機（約 38 MB），然後：
+把 `fcl-4.7.tar.gz` 拷到公司主機（約 38 MB），然後：
 
 ```bash
-gunzip -c fcl-4.6.tar.gz | docker load
+gunzip -c fcl-4.7.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -133,7 +138,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:4.6
+    image: coolguazi/fiber-cut-localizer:4.7
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
