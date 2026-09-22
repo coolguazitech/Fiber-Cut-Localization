@@ -1,9 +1,24 @@
-# 光纖斷點定位 — 部署與維護說明書
+# Optiview — 部署與維護說明書
 
-版本 **4.0** · `linux/amd64` · 映像檔 37.9 MB · 弱點掃描 CRITICAL 0 / HIGH 0
+版本 **4.1** · `linux/amd64` · 離線檔 37.7 MB · 弱點掃描 CRITICAL 0 / HIGH 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
+
+系統名稱可以自己改（`.env` 的 `APP_NAME`），預設是 Optiview。
+
+<details>
+<summary>4.1 這一版改了什麼</summary>
+
+- **「斷點如何影響」改成一對設備一張卡片。** 同一對之間有好幾個連接埠時，
+  重複的主機名收進標題，卡片內一列是一條不同的走法。
+- **每一條斷掉的邏輯連線都給繞路方案。** 點卡片內的走法展開替代路徑
+  （都不經過斷點，短的排前面）；沒有替代路徑的會明講 —— 派工優先序從這裡看。
+- **現場地圖改成樹狀。** 樞紐在最上面往下一層一層展開，往下一層就是往外一跳，
+  同一層的設備保證不重疊。遠看只畫骨架與紅色斷線，放大或點某台才展開細節。
+- **系統名稱與時區可以在啟動時設定**（`APP_NAME`、`TZ`，見 `.env`）。
+
+</details>
 
 ---
 
@@ -62,7 +77,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:4.0
+docker pull coolguazi/fiber-cut-localizer:4.1
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -70,7 +85,7 @@ docker pull coolguazi/fiber-cut-localizer:4.0
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.0
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.1
 > docker run --platform linux/amd64 …
 > ```
 
@@ -79,14 +94,14 @@ docker pull coolguazi/fiber-cut-localizer:4.0
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.0
-docker save coolguazi/fiber-cut-localizer:4.0 | gzip > fcl-4.0.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:4.1
+docker save coolguazi/fiber-cut-localizer:4.1 | gzip > fcl-4.1.tar.gz
 ```
 
-把 `fcl-4.0.tar.gz` 拷到公司主機（約 15 MB），然後：
+把 `fcl-4.1.tar.gz` 拷到公司主機（約 15 MB），然後：
 
 ```bash
-gunzip -c fcl-4.0.tar.gz | docker load
+gunzip -c fcl-4.1.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -102,7 +117,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:4.0
+    image: coolguazi/fiber-cut-localizer:4.1
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
@@ -127,7 +142,11 @@ volumes:
 
 ### `.env`
 
-第一次先照抄。網管那兩行留白也能跑（會用內建的示範網），確認畫面正常之後再填。
+第一次先照抄，**但 `NMS_BASELINE_URL` 一定要填**。
+
+「設備之間有哪些邏輯連線」只有網管講得出來，光纖圖與設備清單都不含這個資訊。
+沒填的話設定會停在步驟 2-3（按了撈取沒有反應，階段一直停在「讀取網管」），
+後面每一步都走不下去。
 
 ```bash
 # ── 網管 API ────────────────────────────────────────────────
@@ -145,6 +164,8 @@ LOG_RETENTION_DAYS=7           # log 留幾天。Event 是永久的，不受這�
 DEMO_MODE=1                    # 這一版的 log 來源，保持 1
 
 # ── 其他 ────────────────────────────────────────────────────
+APP_NAME=Optiview              # 畫面左上角的系統名稱。改了重啟就生效
+TZ=Asia/Taipei                 # 畫面與每日 log 檔名用的時區。不設會變成 UTC
 DEFAULT_PRODUCT=FAB
 LOG_LEVEL=INFO
 ```
@@ -201,8 +222,9 @@ AGG-DC2-01,71DC2,access
 
 按一下，系統會逐台去問網管、算出設備之間有哪些連線。
 
-沒填 `NMS_BASELINE_URL` 時，畫面會直接說「還沒有網管可以問」——
-那是正常的，可以先跳過往下走。
+**沒填 `NMS_BASELINE_URL` 的話這一步過不去。** 按了撈取不會有動靜，階段一直
+停在這裡 —— 因為「哪兩台之間有連線」只有網管講得出來，光纖圖與設備清單都沒有
+這個資訊。回去把 `.env` 填好，`docker compose up -d` 重來。
 
 撈完會給一份**撈取報告**：問到幾台、哪幾台查無此設備、哪幾台查得到但沒有任何
 已接線的介面、網管回報了幾台清單上沒有的設備。
