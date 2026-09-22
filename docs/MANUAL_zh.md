@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **5.0.1** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0
+版本 **5.1** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -43,6 +43,13 @@
   現在四個分頁（現場、影響、替代路徑、原始 log）都吃事件自帶的那一份。
 - 「當時的紀錄」那塊說明收成一行，細節放進問號；而且不再斷定是「超過保留
   期限」—— log 不在了也可能是有人清過，畫面沒有辦法分辨，就不要猜。
+
+**5.1**
+- **每個畫面都有自己的網址**：`#/event/FAB-260922-002`、`#/syslog`。重新整理
+  會回到同一件事，可以加書籤，也可以把連結貼給同事直接開。上一頁／下一頁
+  照常用。連結指向一件已經不存在的事故時，會退回清單並說明原因。
+- 分頁與按鈕加上符號，卡片與彈出視窗有進場與滑入的動態（最長 260ms）。
+  系統設定「減少動態」時全部關掉 —— 那是無障礙，不是偏好。
 
 </details>
 
@@ -103,7 +110,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.0.1
+docker pull coolguazi/fiber-cut-localizer:5.1
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -111,7 +118,7 @@ docker pull coolguazi/fiber-cut-localizer:5.0.1
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.0.1
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.1
 > docker run --platform linux/amd64 …
 > ```
 
@@ -120,14 +127,14 @@ docker pull coolguazi/fiber-cut-localizer:5.0.1
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.0.1
-docker save coolguazi/fiber-cut-localizer:5.0.1 | gzip > fcl-5.0.1.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.1
+docker save coolguazi/fiber-cut-localizer:5.1 | gzip > fcl-5.1.tar.gz
 ```
 
-把 `fcl-5.0.1.tar.gz` 拷到公司主機（約 38 MB），然後：
+把 `fcl-5.1.tar.gz` 拷到公司主機（約 38 MB），然後：
 
 ```bash
-gunzip -c fcl-5.0.1.tar.gz | docker load
+gunzip -c fcl-5.1.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -143,7 +150,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.0.1
+    image: coolguazi/fiber-cut-localizer:5.1
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
