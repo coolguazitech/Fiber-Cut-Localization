@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **5.1.1** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.2** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -56,6 +56,16 @@
   線的兩種顏色、點一台設備之後那三種外圈各代表什麼。
   其中**青色的點是「樞紐」**—— 那一群裡邏輯鄰接最多的一台，也是唯一一直
   掛著名字的。切到「+1 跳」時圖會分成更多群，所以樞紐會變多。
+
+**5.2 —— 撈不到網管時，日誌要說得出是哪一種撈不到**
+- 撈取失敗時，系統日誌會記下**網管到底回了什麼**：每一種失敗各幾次、前幾筆的
+  狀態碼與**回應內容片段**（看得出是 JSON、SSO 登入頁、還是一句錯誤訊息）、
+  以及每一種對應的下一步。以前只有一句「64 台查詢失敗」。
+- 新增一種會被抓出來的壞法：**網管回得出設備，但一條鄰接都沒有**（欄位對不上）。
+  以前這會被當成「撈取成功」，然後 N=0 —— 畫面看起來設定完成了，定位卻永遠
+  算不出答案。現在它會中止並附上一台正常回應的原文。
+- 現場地圖底部改成「圖上 58 台（受影響 35 台 ＋ 往外 1 跳 23 台）」，
+  不再跟標題的 35 台互相矛盾。
 
 </details>
 
@@ -116,7 +126,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.1.1
+docker pull coolguazi/fiber-cut-localizer:5.2
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -124,7 +134,7 @@ docker pull coolguazi/fiber-cut-localizer:5.1.1
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.1.1
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.2
 > docker run --platform linux/amd64 …
 > ```
 
@@ -133,14 +143,14 @@ docker pull coolguazi/fiber-cut-localizer:5.1.1
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.1.1
-docker save coolguazi/fiber-cut-localizer:5.1.1 | gzip > fcl-5.1.1.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.2
+docker save coolguazi/fiber-cut-localizer:5.2 | gzip > fcl-5.2.tar.gz
 ```
 
-把 `fcl-5.1.1.tar.gz` 拷到公司主機（約 38 MB），然後：
+把 `fcl-5.2.tar.gz` 拷到公司主機（約 38 MB），然後：
 
 ```bash
-gunzip -c fcl-5.1.1.tar.gz | docker load
+gunzip -c fcl-5.2.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -156,7 +166,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.1.1
+    image: coolguazi/fiber-cut-localizer:5.2
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
@@ -488,6 +498,39 @@ docker compose pull && docker compose up -d
 
 > **「做了什麼」這一類很值得先看。** 定位突然變差，多半不是程式壞了，
 > 是有人換了一份清單或按了暫停 —— 而那不會產生任何錯誤訊息。
+
+## 6-1-1　先看系統日誌裡那一筆撈取紀錄
+
+撈取失敗時，系統日誌會留下一筆 **ERROR**，點開就有排查要的全部材料：
+
+```
+撈取中止：0 台查無此設備、64 台查詢失敗（共 64 台）。主要原因：http_401×64
+  context ↓
+  url        https://你們的網管/api/dcim/devices/
+  by_kind    {"http_401": 64}          ← 每一種失敗各幾次
+  samples    [{ kind: http_401, status: 401,
+               response_sample: {"detail": "invalid token"},
+               next_step: "認證失敗。換一個 token；網管不是 Bearer 的話用
+                           NMS_AUTH_HEADER 給整個標頭。" }]
+```
+
+`by_kind` 先看：它告訴你主因是哪一種。`samples` 裡的 `response_sample` 是
+**網管實際回的內容**，`next_step` 是那一種對應的動作。
+
+| `by_kind` 的分類 | 意思 | 要做什麼 |
+|---|---|---|
+| `http_401` / `http_403` | token 不對 / 沒權限 | 換 token；不是 Bearer 就用 `NMS_AUTH_HEADER` |
+| `http_404` | 網址路徑不對 | 常見是少了結尾斜線 |
+| `http_5xx` | 網管自己出錯 | 等一下再撈，或找網管管理員 |
+| `timeout` | 沒在時限內回應 | 確認網路可達，必要時調大 `NMS_TIMEOUT` |
+| `connect` | 連不上 | DNS、防火牆、TLS 憑證 |
+| `parse` | 回應不是 JSON | 看 `response_sample`，開頭是 `<html>` 就是 SSO 登入頁 |
+| `unknown` | 網管查無此 hostname | 設備清單過時，重新匯入 |
+| `empty` | 查得到但沒有可用的介面／纜線 | 欄位名稱可能不同，往下跑分段診斷 |
+
+還有一種不會出現在上表、但一樣會被擋下來的情況：**每一台都問到了，卻一條
+鄰接都沒有**。那通常是欄位對不上（介面在另一個端點、cable 兩端用 FQDN 而
+清單用短名）。這一輪會被判定失敗並保留舊資料，日誌裡附上一台正常回應的原文。
 
 ## 6-2　再跑分段診斷
 
