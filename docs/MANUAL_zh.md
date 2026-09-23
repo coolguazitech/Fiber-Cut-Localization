@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **5.3** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.4** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -83,6 +83,15 @@
   它會在畫面上一直標紅字、狀態 API 回 `synthetic: true`、每次啟動寫一筆警告
   —— **不能拿來做任何判斷**。網管接得上之後重新撈一次就會蓋掉它。
 
+**5.4 —— 保證演得完**
+- image 內附**範例網路**（9 個 DC、12 段光纖、64 台設備）。設定第 1 步有一顆
+  「載入內建的範例網路」，手邊沒有 CSV 也能把第 1、2 步一次走完。
+- 於是最壞的情況也走得完：**全新機器 + 沒有任何檔案 + 網管完全不通**
+  → 載入範例 → 撈取失敗 → 改用示範用的邏輯連線 → 開始監看 → 製造一次斷纖
+  → 定位正確。這條路每次出版都會實跑一次。
+- 範例資料與示範用的 N 都會在主控台一直標紅字，狀態 API 也回得出來
+  （`sample_data` / `synthetic`）。匯入真的光纖圖就會蓋掉範例。
+
 </details>
 
 ---
@@ -142,7 +151,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.3
+docker pull coolguazi/fiber-cut-localizer:5.4
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -150,7 +159,7 @@ docker pull coolguazi/fiber-cut-localizer:5.3
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.3
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.4
 > docker run --platform linux/amd64 …
 > ```
 
@@ -159,14 +168,14 @@ docker pull coolguazi/fiber-cut-localizer:5.3
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.3
-docker save coolguazi/fiber-cut-localizer:5.3 | gzip > fcl-5.3.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.4
+docker save coolguazi/fiber-cut-localizer:5.4 | gzip > fcl-5.4.tar.gz
 ```
 
-把 `fcl-5.3.tar.gz` 拷到公司主機（約 38 MB），然後：
+把 `fcl-5.4.tar.gz` 拷到公司主機（約 38 MB），然後：
 
 ```bash
-gunzip -c fcl-5.3.tar.gz | docker load
+gunzip -c fcl-5.4.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -182,7 +191,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.3
+    image: coolguazi/fiber-cut-localizer:5.4
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
@@ -318,6 +327,21 @@ AGG-DC2-01,71DC2,access
 數字對了就按 **「開始監看 →」**。
 
 ---
+
+## 保底：什麼都不順的時候怎麼演
+
+三個東西都可能不在：CSV 不在這台機器上、網管連不上、或網管的回應對不上。
+下面這條路**完全不需要外部條件**，五分鐘走得完：
+
+1. 第 1 步 →「載入內建的範例網路」（9 個 DC、64 台設備）
+2. 第 3 步 → 按「開始撈取」，讓它失敗（沒有網管就是這個結果）
+3. 失敗後會出現紅框 →「改用示範用的邏輯連線」→ 確認
+4. 「開始監看 →」進主控台
+5. 右上「示範資料」→ 製造一次斷纖 → 等約 15 秒 → 事件出現在清單上
+6. 點進事件：看定位結果、受影響的現場、斷點如何影響、原始 log
+
+畫面上會一直有紅字說這是範例資料 —— **那是刻意的**。示範可以用它，
+任何判斷不行。
 
 # 第三部分：走一次完整流程（確認它真的能用）
 
