@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **5.2** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.3** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -67,6 +67,22 @@
 - 現場地圖底部改成「圖上 58 台（受影響 35 台 ＋ 往外 1 跳 23 台）」，
   不再跟標題的 35 台互相矛盾。
 
+**5.3 —— 對得上你們的網管，接不上也還能示範**
+- **支援非 NetBox 形狀的回應**。你們那支把介面放在 `custom_fields.interfaces`、
+  cable 兩端寫成 `termination_a_device` / `termination_a_interface`、筆數欄位
+  叫 `total` —— 三處都跟 NetBox 不同，所以舊版每一台都查得到卻一條鄰接都沒有。
+  現在兩種形狀都認。
+- 還是對不上的話，日誌會**指出卡在哪一關**（找不到介面欄位／介面是空的／
+  沒有 cable／cable 兩端對不上名字／status 值不認得），並附上那台設備實際
+  有哪些欄位。
+- 兩個新的環境變數，不必重做 image 就能調整：
+  - `NMS_INTERFACE_PATHS=data.ports,attributes.interfaces` —— 介面在別的欄位時
+  - `NMS_QUERY=depth=2&limit=100` —— 查詢參數要換一組時
+- **撈不到網管時的備案**：設定第 3 步失敗後會出現「改用示範用的邏輯連線」，
+  用匯入的光纖圖與設備清單兜一份出來，設定走得完、示範跑得動。
+  它會在畫面上一直標紅字、狀態 API 回 `synthetic: true`、每次啟動寫一筆警告
+  —— **不能拿來做任何判斷**。網管接得上之後重新撈一次就會蓋掉它。
+
 </details>
 
 ---
@@ -126,7 +142,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.2
+docker pull coolguazi/fiber-cut-localizer:5.3
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -134,7 +150,7 @@ docker pull coolguazi/fiber-cut-localizer:5.2
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.2
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.3
 > docker run --platform linux/amd64 …
 > ```
 
@@ -143,14 +159,14 @@ docker pull coolguazi/fiber-cut-localizer:5.2
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.2
-docker save coolguazi/fiber-cut-localizer:5.2 | gzip > fcl-5.2.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.3
+docker save coolguazi/fiber-cut-localizer:5.3 | gzip > fcl-5.3.tar.gz
 ```
 
-把 `fcl-5.2.tar.gz` 拷到公司主機（約 38 MB），然後：
+把 `fcl-5.3.tar.gz` 拷到公司主機（約 38 MB），然後：
 
 ```bash
-gunzip -c fcl-5.2.tar.gz | docker load
+gunzip -c fcl-5.3.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -166,7 +182,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.2
+    image: coolguazi/fiber-cut-localizer:5.3
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
