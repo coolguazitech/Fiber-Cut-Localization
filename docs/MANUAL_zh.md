@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **5.6** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.6.2** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -117,6 +117,15 @@
   我們確實不知道每條邏輯連線實際走哪一段，畫面的措辭也改成「可能路徑經過它」。
 - 「解釋不了」現在的意思很明確：兩端之間**沒有任何一條**路徑經過這一刀。
 
+**5.6.1 / 5.6.2**
+- 現場圖點一台設備後的詳情卡，改成**一台對端一組**：對端名稱當標題出現一次，
+  底下列它的每個 port，斷的組排最前面。以前一列一 port，同一台會出現好幾列。
+- 「斷點如何影響」的措辭改成**候選路徑**，並說明上限：兩端 DC 之間
+  **4 跳以內**的實體路徑（最多列 20 條）有幾條經過這一刀。更長的繞路確實
+  存在但不列入 —— 流量不會在有直達光纖時繞五跳，而定位公式用的就是這一組。
+  卡片上「0／3」的意思是「3 條候選裡沒有一條經過」，不是「圖上找不到任何路」。
+  這個計算在真實部署（沒有示範模式）也一樣跑。
+
 </details>
 
 ---
@@ -176,7 +185,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.6
+docker pull coolguazi/fiber-cut-localizer:5.6.2
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -184,7 +193,7 @@ docker pull coolguazi/fiber-cut-localizer:5.6
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.6
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.6.2
 > docker run --platform linux/amd64 …
 > ```
 
@@ -193,14 +202,14 @@ docker pull coolguazi/fiber-cut-localizer:5.6
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.6
-docker save coolguazi/fiber-cut-localizer:5.6 | gzip > fcl-5.6.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.6.2
+docker save coolguazi/fiber-cut-localizer:5.6.2 | gzip > fcl-5.6.2.tar.gz
 ```
 
-把 `fcl-5.6.tar.gz` 拷到公司主機（約 38 MB），然後：
+把 `fcl-5.6.2.tar.gz` 拷到公司主機（約 38 MB），然後：
 
 ```bash
-gunzip -c fcl-5.6.tar.gz | docker load
+gunzip -c fcl-5.6.2.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -216,7 +225,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.6
+    image: coolguazi/fiber-cut-localizer:5.6.2
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
