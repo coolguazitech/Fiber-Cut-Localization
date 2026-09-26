@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **5.8** · `linux/amd64` · 離線檔 36.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.8.1** · `linux/amd64` · 離線檔 36.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -163,6 +163,14 @@
 - 標題列改成漸層橫幅：左上加了品牌標記（兩個 DC、一條光纖、一個紅色斷點），
   系統名稱下面多一行「光纖斷點定位」。
 
+**5.8.1**
+- 事件卡片改成左右兩塊：左邊是編號、狀態與規模（斷線數／牽連幾組 DC／幾對設備），
+  右邊前三名**直立排**，證據力道晶片只跟在第 1 名後面 —— 它講的是第 1 名
+  領先多少，跟二三名並排會讀成三個都「證據充分」。
+- 標題列拿掉品牌標記與漸層，只留系統名稱與「光纖斷點定位系統」副標。
+- 狀態列與「網管資料更新於」合成一塊卡片：上排是收集開關、三個數字格
+  （名稱在上、數字在下）、設定；下排是資料新鮮度與「立即更新」「示範資料」。
+
 </details>
 
 ---
@@ -222,7 +230,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.8
+docker pull coolguazi/fiber-cut-localizer:5.8.1
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -230,7 +238,7 @@ docker pull coolguazi/fiber-cut-localizer:5.8
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.8
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.8.1
 > docker run --platform linux/amd64 …
 > ```
 
@@ -239,14 +247,14 @@ docker pull coolguazi/fiber-cut-localizer:5.8
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.8
-docker save coolguazi/fiber-cut-localizer:5.8 | gzip > fcl-5.8.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.8.1
+docker save coolguazi/fiber-cut-localizer:5.8.1 | gzip > fcl-5.8.1.tar.gz
 ```
 
-把 `fcl-5.8.tar.gz` 拷到公司主機（約 36 MB），然後：
+把 `fcl-5.8.1.tar.gz` 拷到公司主機（約 36 MB），然後：
 
 ```bash
-gunzip -c fcl-5.8.tar.gz | docker load
+gunzip -c fcl-5.8.1.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -262,7 +270,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.8
+    image: coolguazi/fiber-cut-localizer:5.8.1
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
