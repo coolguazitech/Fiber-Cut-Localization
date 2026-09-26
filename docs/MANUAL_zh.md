@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **5.7** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.7.1** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -137,6 +137,14 @@
 - 現場圖詳情卡的對端分組改用顏色：全通灰、部分斷橘、全斷紅，紅排最上面；
   拿掉「斷 1／2」那種數字。
 
+**5.7.1**
+- 結論帶的分數與證據力道合成一顆晶片：「**100%　證據充分**」。綠色只給第 1 名
+  證據充分；點排行榜看別的名次時，同一顆會變成「12%　證據落後第 1 名」或
+  「0%　證據明顯不足」，黃→橘→灰。不再寫「第 1 名是誰」。
+- 「斷點如何影響」裡經過斷點的候選路徑也可以點，畫到左邊的光纖圖上 ——
+  紅色虛線就是它被切斷的位置。
+- 跳數一律寫「N 跳」，不再寫「N 段」。
+
 </details>
 
 ---
@@ -196,7 +204,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.7
+docker pull coolguazi/fiber-cut-localizer:5.7.1
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -204,7 +212,7 @@ docker pull coolguazi/fiber-cut-localizer:5.7
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.7
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.7.1
 > docker run --platform linux/amd64 …
 > ```
 
@@ -213,14 +221,14 @@ docker pull coolguazi/fiber-cut-localizer:5.7
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.7
-docker save coolguazi/fiber-cut-localizer:5.7 | gzip > fcl-5.7.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.7.1
+docker save coolguazi/fiber-cut-localizer:5.7.1 | gzip > fcl-5.7.1.tar.gz
 ```
 
-把 `fcl-5.7.tar.gz` 拷到公司主機（約 38 MB），然後：
+把 `fcl-5.7.1.tar.gz` 拷到公司主機（約 38 MB），然後：
 
 ```bash
-gunzip -c fcl-5.7.tar.gz | docker load
+gunzip -c fcl-5.7.1.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -236,7 +244,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.7
+    image: coolguazi/fiber-cut-localizer:5.7.1
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
