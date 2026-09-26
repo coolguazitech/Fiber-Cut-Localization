@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **5.4** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.5** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -92,6 +92,15 @@
 - 範例資料與示範用的 N 都會在主控台一直標紅字，狀態 API 也回得出來
   （`sample_data` / `synthetic`）。匯入真的光纖圖就會蓋掉範例。
 
+**5.5 —— 排行榜可以點**
+- 「最可疑的光纖」的每一列都可以點：點了之後**整個畫面改用那條當斷點**——
+  光纖圖上的紅色斷點、「斷點如何影響」的卡片與替代路徑、底下的結論帶，
+  全部跟著換。結論帶會改寫成「假設斷點是第 N 名」並換成青色底，旁邊有
+  「回到第 1 名」。第 1 名領先不多的時候，這是看第 2 名「會切斷誰、怎麼繞」
+  的方法。
+- 現場圖點一台設備後的詳情卡，**斷掉的連線排最上面**，標題寫「斷 N／共 M 條」。
+  一台核心設備可能有上百個 port，斷的那幾條不該被一長串「通」洗掉。
+
 </details>
 
 ---
@@ -151,7 +160,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.4
+docker pull coolguazi/fiber-cut-localizer:5.5
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -159,7 +168,7 @@ docker pull coolguazi/fiber-cut-localizer:5.4
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.4
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.5
 > docker run --platform linux/amd64 …
 > ```
 
@@ -168,14 +177,14 @@ docker pull coolguazi/fiber-cut-localizer:5.4
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.4
-docker save coolguazi/fiber-cut-localizer:5.4 | gzip > fcl-5.4.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.5
+docker save coolguazi/fiber-cut-localizer:5.5 | gzip > fcl-5.5.tar.gz
 ```
 
-把 `fcl-5.4.tar.gz` 拷到公司主機（約 38 MB），然後：
+把 `fcl-5.5.tar.gz` 拷到公司主機（約 38 MB），然後：
 
 ```bash
-gunzip -c fcl-5.4.tar.gz | docker load
+gunzip -c fcl-5.5.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -191,7 +200,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.4
+    image: coolguazi/fiber-cut-localizer:5.5
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
