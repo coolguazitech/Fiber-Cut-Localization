@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **5.7.1** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.7.4** · `linux/amd64` · 離線檔 37.8 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -145,6 +145,15 @@
   紅色虛線就是它被切斷的位置。
 - 跳數一律寫「N 跳」，不再寫「N 段」。
 
+**5.7.2 – 5.7.4**
+- 在「斷點如何影響」點任何一條路徑時，左邊光纖圖亮的是**那一對 peer 的兩端 DC**；
+  收合後回到斷點假設的兩端。
+- 現場圖點一台設備後的詳情卡，底下多了「看替代路徑 →」「看這台的 log →」：
+  前者跳到「斷點如何影響」並自動展開含這台設備的卡片，後者跳到「原始 log」
+  並帶入設備名稱只留它的列。
+- 三種路徑按鈕（經過斷點／替代／候補）hover 都有說明。
+- 問號說明只留定義，拿掉對話式的措辭。
+
 </details>
 
 ---
@@ -204,7 +213,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.7.1
+docker pull coolguazi/fiber-cut-localizer:5.7.4
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -212,7 +221,7 @@ docker pull coolguazi/fiber-cut-localizer:5.7.1
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.7.1
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.7.4
 > docker run --platform linux/amd64 …
 > ```
 
@@ -221,14 +230,14 @@ docker pull coolguazi/fiber-cut-localizer:5.7.1
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.7.1
-docker save coolguazi/fiber-cut-localizer:5.7.1 | gzip > fcl-5.7.1.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.7.4
+docker save coolguazi/fiber-cut-localizer:5.7.4 | gzip > fcl-5.7.4.tar.gz
 ```
 
-把 `fcl-5.7.1.tar.gz` 拷到公司主機（約 38 MB），然後：
+把 `fcl-5.7.4.tar.gz` 拷到公司主機（約 38 MB），然後：
 
 ```bash
-gunzip -c fcl-5.7.1.tar.gz | docker load
+gunzip -c fcl-5.7.4.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -244,7 +253,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.7.1
+    image: coolguazi/fiber-cut-localizer:5.7.4
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
