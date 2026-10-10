@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **5.26.8** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.26.10** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -332,6 +332,13 @@
 - 「當時的紀錄」（這件事的 N 筆 alarm 存於何時、問號說明、光纖圖改過的提醒）
   不再是事件列下方獨立的一條，改寫在事件卡片的右下方。
 
+**5.26.9 / 5.26.10**
+- 事件卡片的「接手／結案／開啟」三顆按鈕放卡片右下角。
+- 按「暫停」或「開始」的當下，近期 Alarm 卡片立刻變紅框／恢復（以前要等它自己
+  兩秒一次的輪詢）。
+- 問號說明的泡泡會自己判斷往哪邊長：超出視窗右緣就改往左、超出左緣就改往右，
+  不再被截掉；事件卡片右下的那顆也不例外。
+
 </details>
 
 ---
@@ -391,7 +398,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.26.8
+docker pull coolguazi/fiber-cut-localizer:5.26.10
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -399,7 +406,7 @@ docker pull coolguazi/fiber-cut-localizer:5.26.8
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.26.8
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.26.10
 > docker run --platform linux/amd64 …
 > ```
 
@@ -408,14 +415,14 @@ docker pull coolguazi/fiber-cut-localizer:5.26.8
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.26.8
-docker save coolguazi/fiber-cut-localizer:5.26.8 | gzip > fcl-5.26.8.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.26.10
+docker save coolguazi/fiber-cut-localizer:5.26.10 | gzip > fcl-5.26.10.tar.gz
 ```
 
-把 `fcl-5.26.8.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-5.26.10.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-5.26.8.tar.gz | docker load
+gunzip -c fcl-5.26.10.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -431,7 +438,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.26.8
+    image: coolguazi/fiber-cut-localizer:5.26.10
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
