@@ -1,6 +1,6 @@
 # FCL — 部署與維護說明書
 
-版本 **5.21** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.22** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -244,7 +244,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.21
+docker pull coolguazi/fiber-cut-localizer:5.22
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -252,7 +252,7 @@ docker pull coolguazi/fiber-cut-localizer:5.21
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.21
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.22
 > docker run --platform linux/amd64 …
 > ```
 
@@ -261,14 +261,14 @@ docker pull coolguazi/fiber-cut-localizer:5.21
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.21
-docker save coolguazi/fiber-cut-localizer:5.21 | gzip > fcl-5.21.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.22
+docker save coolguazi/fiber-cut-localizer:5.22 | gzip > fcl-5.22.tar.gz
 ```
 
-把 `fcl-5.21.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-5.22.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-5.21.tar.gz | docker load
+gunzip -c fcl-5.22.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -284,7 +284,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.21
+    image: coolguazi/fiber-cut-localizer:5.22
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
@@ -324,7 +324,7 @@ NMS_AUTH_TOKEN=
 NMS_AUTH_HEADER=
 # 多久自己重讀一次，秒。預設一天
 NMS_POLL_INTERVAL=86400
-NMS_TIMEOUT=10
+NMS_TIMEOT=10
 NMS_CONCURRENCY=8
 
 # ── 資料保留 ────────────────────────────────────────────────
@@ -333,8 +333,8 @@ LOG_RETENTION_DAYS=7
 
 # ── 設定的帳密 ──────────────────────────────────────────────
 # 點「設定」要輸入的帳密。預設 root / admin123，上線前請改掉
-ADMIN_USER=root
-ADMIN_PASSWORD=admin123
+ADIN_USER=root
+ADIN_PASSWORD=admin123
 
 # ── 演習 ────────────────────────────────────────────────────
 # 1＝畫面上有「演習」按鈕，可以自己製造一次斷纖來確認系統活著、或平常測試。
@@ -660,7 +660,7 @@ docker compose pull && docker compose up -d
 | `http_401` / `http_403` | token 不對 / 沒權限 | 換 token；不是 Bearer 就用 `NMS_AUTH_HEADER` |
 | `http_404` | 網址路徑不對 | 常見是少了結尾斜線 |
 | `http_5xx` | 網管自己出錯 | 等一下再撈，或找網管管理員 |
-| `timeout` | 沒在時限內回應 | 確認網路可達，必要時調大 `NMS_TIMEOUT` |
+| `timeout` | 沒在時限內回應 | 確認網路可達，必要時調大 `NMS_TIMEOT` |
 | `connect` | 連不上 | DNS、防火牆、TLS 憑證 |
 | `parse` | 回應不是 JSON | 看 `response_sample`，開頭是 `<html>` 就是 SSO 登入頁 |
 | `unknown` | 網管查無此 hostname | 設備清單過時，重新匯入 |
@@ -812,3 +812,51 @@ docker compose pull && docker compose up -d      # 升級
 docker run --rm -v fcl-data:/data -v "$PWD":/out alpine \
   tar czf /out/fcl-backup-$(date +%F).tar.gz -C /data .   # 備份
 ```
+
+---
+
+## 附錄 A　alarm 格式（網管的 IF_DOWN）
+
+系統吃的是網管畫面貼出來的文字，長這樣（一筆可能跨兩三行）：
+
+```
+(198.51.100.56) (switch-xx) (N/A) (Port) Eth1/20 down (To-
+switch-xx Eth1/27) and not back (***)
+(標頭)
+```
+
+| 欄位 | 例 | 用途 |
+|---|---|---|
+| IP | `198.51.100.56` | 顯示 |
+| 本地 hostname | `switch-xx` | **反查對端用** |
+| 本地介面 | `Eth1/20` | **反查對端用**（簡寫，見附錄 B） |
+| `down (…)` 裡的描述 | `To-switch-xx Eth1/27` | **只顯示，不採信** —— 是設定交換器的人打的，樣本裡就有 `Twe1/0/7 Interface`、`ToIPL`、`downlink`、過期的對端名 |
+| 結尾 | `and not back` / `and is flapping` | flapping 會標出來 |
+| 標頭 | `(標頭)` | 單位（單位 A／B／C）；可在上一行、下一行或同一行；沒有就「不知道」 |
+
+一筆 IF_DOWN **只有本地那一端**。對端是拿 (hostname, 介面) 去邏輯連線（網管撈的 N）反查出來的，
+所以設備清單裡沒有那台、或介面對不到、或介面有但沒 cable 記錄，這一筆就進不了證據 —— 匯入報告會分別列出來。
+
+殘缺的列（IP 少一段、hostname 欄位裡夾了介面）計成「殘缺」並留原文，不猜。
+
+## 附錄 B　介面簡寫對照表
+
+反查對端時**以數字尾碼為主**（`1/0/26` 在同一台設備上幾乎唯一），對照表只在同一尾碼撞到兩個介面
+（例如實體埠與 Port-channel 同號）時用字母前綴當裁判。所以沒列到的寫法照樣對得到。
+
+| 速率／類型 | Cisco IOS-XE | Cisco IOS-XR | Cisco NX-OS | Arista | H3C | Huawei | Juniper | 網管截斷常見 |
+|---|---|---|---|---|---|---|---|---|
+| 400G | FourHundredGigE / F | FourHundredGigE | Ethernet | Ethernet / Et | — | 400GE | et- | — |
+| 100G | HundredGigE / Hu | HundredGigE / Hu | Ethernet / Eth | Ethernet / Et | HundredGigE / HGE | 100GE | et- | Hun、Hu |
+| 40G | FortyGigabitEthernet / Fo | FortyGigE | Ethernet | Ethernet | FortyGigE / FGE | 40GE | et- | Forty、For |
+| 25G | TwentyFiveGigE / Twe | TwentyFiveGigE / TF | Ethernet | Ethernet | Twenty-FiveGigE / WGE | 25GE | — | Twe |
+| 10G | TenGigabitEthernet / Te | TenGigE | Ethernet | Ethernet | Ten-GigabitEthernet / XGE | XGigabitEthernet / XGE、10GE | xe- | Ten、TE |
+| 5G／2.5G | FiveGigabitEthernet / Fi、TwoGigabitEthernet / Tw | — | — | — | — | — | — | — |
+| 1G | GigabitEthernet / Gi | GigabitEthernet | Ethernet | Ethernet | GigabitEthernet / GE | GigabitEthernet / GE | ge- | Gi、GE |
+| 100M | FastEthernet / Fa | — | — | — | — | — | fe- | — |
+| 聚合 | Port-channel / Po | Bundle-Ether / BE | port-channel / Po | Port-Channel / Po | Bridge-Aggregation / BAGG、Route-Aggregation / RAGG | Eth-Trunk | ae | — |
+| 其他 | Vlan / Vl、Loopback / Lo、Tunnel / Tu、mgmt | — | mgmt0 | Management | Vlan-interface、M-GigabitEthernet | Vlanif、MEth | lo0、em0 | — |
+
+Aruba CX 的介面沒有字母前綴（`1/1/1`），也認得。
+
+匯入報告裡「介面對不到」的那幾筆，通常是：網管介面清單裡根本沒有那個尾碼（清單過時）、或同尾碼有兩個介面而字首是表上沒有的新寫法 —— 把寫法告訴我們，加一行就好。
