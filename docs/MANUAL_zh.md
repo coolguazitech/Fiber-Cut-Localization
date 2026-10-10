@@ -1,6 +1,6 @@
 # FCL — 部署與維護說明書
 
-版本 **5.8.2** · `linux/amd64` · 離線檔 36.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.9** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -176,6 +176,15 @@
   切去別的頁籤再回來，又只剩那台設備的幾對。現在「顯示全部」會一併清掉
   跳轉時記下的設備，回來就是全部。
 
+**5.9 —— 總覽分廠列**
+- 狀態列的總數底下多一排**各廠一格**：`71 廠 ｜ 5 DC · 6 光纖 · 38 連線 · 35 台`。
+  廠號取 DC 名稱前面的數字（`71DC1` → 71 廠）。一個廠整個沒進來，在
+  「9 個 DC」這個總數裡看不出來，分開列就看得出 71 廠有、72 廠沒有。
+- 兩端不同廠的光纖與邏輯連線另外列成「**跨廠**」（虛線框），不塞進任何一邊 ——
+  塞進一邊會讓那一邊多出一截，兩邊都塞會重複算。各廠加總＋跨廠＝總數，
+  這一條每次出版都有測試守著。
+- 只有一個廠時不列這一排（會跟總數一模一樣）。狀態 API 多了 `plants` 欄位。
+
 </details>
 
 ---
@@ -235,7 +244,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.8.2
+docker pull coolguazi/fiber-cut-localizer:5.9
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -243,7 +252,7 @@ docker pull coolguazi/fiber-cut-localizer:5.8.2
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.8.2
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.9
 > docker run --platform linux/amd64 …
 > ```
 
@@ -252,14 +261,14 @@ docker pull coolguazi/fiber-cut-localizer:5.8.2
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.8.2
-docker save coolguazi/fiber-cut-localizer:5.8.2 | gzip > fcl-5.8.2.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.9
+docker save coolguazi/fiber-cut-localizer:5.9 | gzip > fcl-5.9.tar.gz
 ```
 
-把 `fcl-5.8.2.tar.gz` 拷到公司主機（約 36 MB），然後：
+把 `fcl-5.9.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-5.8.2.tar.gz | docker load
+gunzip -c fcl-5.9.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -275,7 +284,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.8.2
+    image: coolguazi/fiber-cut-localizer:5.9
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
