@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **1.0** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **1.0.1** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -368,6 +368,11 @@
 - 按過「開始收集」之後再暫停，重新整理頁面會回到首頁顯示「已暫停」，不再被
   送回設定精靈的最後一頁。從沒按過開始的，仍停在精靈等人按。
 
+**1.0.1**
+- 「邏輯拓樸」上選好的東西（單位、受影響／+1 跳、攤開、點選的設備）切去
+  「斷點如何影響」或「原始 alarm」再回來都還在；從設備卡片按「替代路徑 →」跳
+  過去再回來也一樣。換另一件事件才會歸零。
+
 </details>
 
 ---
@@ -427,7 +432,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:1.0
+docker pull coolguazi/fiber-cut-localizer:1.0.1
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -435,7 +440,7 @@ docker pull coolguazi/fiber-cut-localizer:1.0
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.0
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.0.1
 > docker run --platform linux/amd64 …
 > ```
 
@@ -444,14 +449,14 @@ docker pull coolguazi/fiber-cut-localizer:1.0
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.0
-docker save coolguazi/fiber-cut-localizer:1.0 | gzip > fcl-1.0.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.0.1
+docker save coolguazi/fiber-cut-localizer:1.0.1 | gzip > fcl-1.0.1.tar.gz
 ```
 
-把 `fcl-1.0.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-1.0.1.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-1.0.tar.gz | docker load
+gunzip -c fcl-1.0.1.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -467,7 +472,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:1.0
+    image: coolguazi/fiber-cut-localizer:1.0.1
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
