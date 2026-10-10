@@ -1,6 +1,6 @@
 # FCL — 部署與維護說明書
 
-版本 **5.23.2** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.24** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -230,7 +230,7 @@
 
 **5.22.1 / 5.22.2**
 - 公開手冊不放 alarm 格式範例、網管 API 欄位名、任何 hostname 或 IP；image 內附
-  一份格式相同的**假**樣本（`samples/alarm_samples.txt`），面板上「載入內附假樣本」。
+  任何樣本都不進 image。
 
 **5.23 —— 演習三種情況各一個頁籤**
 - 演習面板改成三個頁籤：① 假連線＋系統產生 alarm、② 真連線＋系統產生 alarm、
@@ -250,6 +250,17 @@
   開發用假網管的偵測不再影響演習的標示。
 - 修一個 bug：改用備案之後，網管接得上、重新撈到邏輯連線時，備案的旗標沒被
   清掉，演習面板會一直說是假連線（也是 ①③ 同時開著的來源）。現在撈到就清。
+
+**5.24 —— 程式與 image 裡不留任何格式字面**
+- alarm 解析改成只用字元類別描述形狀（例如「七字母單字(單位)(事件)」「(兩字母) (四字母)
+  介面」「and 幾個英文字 (x/y/… 尾標籤)」），程式裡不出現網管格式的任何字面、也不出現
+  網管系統的名稱；真實格式照樣解析。
+- image 不再內附 alarm 樣本；「載入內附假樣本」拿掉。選檔案的提示：純文字檔
+  （.txt／.log），內容就是從網管畫面存下來的多筆原始 alarm。
+- 非 NetBox 形狀的網管回應改由環境變數指定，程式裡不再有任何自建包裝層的欄位名：
+  `NMS_INTERFACE_PATHS`（介面清單的路徑）與新的 `NMS_CABLE_FIELDS`（cable 兩端攤平時的
+  四個鍵名：a 端設備、a 端介面、b 端設備、b 端介面，逗號分隔）。數值在公司內部的
+  `.env` 填，不寫進任何公開文件。
 
 </details>
 
@@ -310,7 +321,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.23.2
+docker pull coolguazi/fiber-cut-localizer:5.24
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -318,7 +329,7 @@ docker pull coolguazi/fiber-cut-localizer:5.23.2
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.23.2
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.24
 > docker run --platform linux/amd64 …
 > ```
 
@@ -327,14 +338,14 @@ docker pull coolguazi/fiber-cut-localizer:5.23.2
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.23.2
-docker save coolguazi/fiber-cut-localizer:5.23.2 | gzip > fcl-5.23.2.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.24
+docker save coolguazi/fiber-cut-localizer:5.24 | gzip > fcl-5.24.tar.gz
 ```
 
-把 `fcl-5.23.2.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-5.24.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-5.23.2.tar.gz | docker load
+gunzip -c fcl-5.24.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -350,7 +361,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.23.2
+    image: coolguazi/fiber-cut-localizer:5.24
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
@@ -396,6 +407,12 @@ NMS_CONCURRENCY=8
 # ── 資料保留 ────────────────────────────────────────────────
 # alarm 留幾天。事件是永久的，不受這個影響
 LOG_RETENTION_DAYS=7
+
+# ── 網管回應不是 NetBox 形狀時 ──────────────────────────────
+# 介面清單在別的路徑：逗號分隔、用點連層級（例：data.ports）
+NMS_INTERFACE_PATHS=
+# cable 兩端是攤平的欄位：四個鍵名，順序 a 端設備,a 端介面,b 端設備,b 端介面
+NMS_CABLE_FIELDS=
 
 # ── 設定的帳密 ──────────────────────────────────────────────
 # 點「設定」要輸入的帳密。預設 root / admin123，上線前請改掉
@@ -885,8 +902,7 @@ docker run --rm -v fcl-data:/data -v "$PWD":/out alpine \
 
 **要貼什麼**：把網管畫面匯出的 IF_DOWN 文字**整段**貼進去 —— 一次一件事故的所有 alarm，通常是
 幾筆到幾十筆。照網管匯出的原樣，不用整理：一筆跨好幾行、標頭另起一行、項目符號、殘缺的列都處理。
-格式本身不放在公開文件裡；image 內附的 `samples/alarm_samples.txt` 是一份格式相同的假樣本，
-面板上「載入內附假樣本」就是它，先試一次再貼自己的。
+格式本身不放在公開文件裡，image 也不內附任何樣本。
 
 **系統怎麼驗證每一筆**
 
