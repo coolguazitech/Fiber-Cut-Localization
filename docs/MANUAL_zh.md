@@ -1,6 +1,6 @@
 # FCL — 部署與維護說明書
 
-版本 **5.25.2** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.25.3** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -290,6 +290,10 @@
 - 「監控中」改成只有按鈕外圈的綠色**光暈**在閃（0 → 亮 → 0，1.6 秒一輪）；
   底色、框線、三個字都不動。
 
+**5.25.3**
+- 「已暫停」改成紅色（按鈕、圖示、字），狀態卡片外框改成紅色加粗帶光暈
+  （原本是橘色細框）—— 沒在收 alarm 的狀態要隔著一個房間也看得出來。
+
 </details>
 
 ---
@@ -349,7 +353,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.25.2
+docker pull coolguazi/fiber-cut-localizer:5.25.3
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -357,7 +361,7 @@ docker pull coolguazi/fiber-cut-localizer:5.25.2
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.25.2
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.25.3
 > docker run --platform linux/amd64 …
 > ```
 
@@ -366,14 +370,14 @@ docker pull coolguazi/fiber-cut-localizer:5.25.2
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.25.2
-docker save coolguazi/fiber-cut-localizer:5.25.2 | gzip > fcl-5.25.2.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.25.3
+docker save coolguazi/fiber-cut-localizer:5.25.3 | gzip > fcl-5.25.3.tar.gz
 ```
 
-把 `fcl-5.25.2.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-5.25.3.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-5.25.2.tar.gz | docker load
+gunzip -c fcl-5.25.3.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -389,7 +393,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.25.2
+    image: coolguazi/fiber-cut-localizer:5.25.3
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
