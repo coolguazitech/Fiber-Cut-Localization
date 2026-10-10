@@ -1,6 +1,6 @@
 # FCL — 部署與維護說明書
 
-版本 **5.26.10** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.27.0** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -339,6 +339,16 @@
 - 問號說明的泡泡會自己判斷往哪邊長：超出視窗右緣就改往左、超出左緣就改往右，
   不再被截掉；事件卡片右下的那顆也不例外。
 
+**5.27.0 — 多人同時操作**
+- 「接手」「結案」會記下是誰做的。第一次按的時候問一次名字（或工號），存在那台
+  瀏覽器裡；事件清單標題旁有「我是 ○○」可以改。卡片上顯示「接手：甲」「結案：甲」。
+- 兩個人同時處理同一件事：第二個人按下去會立刻看到「甲已經接手這件事」，而且
+  那張卡片當場換成甲接手後的樣子，不必等下一次更新。結案也一樣，後按的人不會
+  把先結案的人的處理結果蓋掉。
+- 後端對接手／結案／刪除上了同一把鎖：同一瞬間按下去也只會有一個人成功。
+- 「立即重新撈取」連按、或兩個人同時按，只會真的向網管撈一輪。
+- 回放拉時間軸、搜尋 alarm 這些純看的動作，本來就各看各的，彼此不影響。
+
 </details>
 
 ---
@@ -398,7 +408,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.26.10
+docker pull coolguazi/fiber-cut-localizer:5.27.0
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -406,7 +416,7 @@ docker pull coolguazi/fiber-cut-localizer:5.26.10
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.26.10
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.27.0
 > docker run --platform linux/amd64 …
 > ```
 
@@ -415,14 +425,14 @@ docker pull coolguazi/fiber-cut-localizer:5.26.10
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.26.10
-docker save coolguazi/fiber-cut-localizer:5.26.10 | gzip > fcl-5.26.10.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.27.0
+docker save coolguazi/fiber-cut-localizer:5.27.0 | gzip > fcl-5.27.0.tar.gz
 ```
 
-把 `fcl-5.26.10.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-5.27.0.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-5.26.10.tar.gz | docker load
+gunzip -c fcl-5.27.0.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -438,7 +448,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.26.10
+    image: coolguazi/fiber-cut-localizer:5.27.0
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
@@ -654,6 +664,17 @@ core-03  Eth1/8 ↔ core-04  Eth1/1     71DC3 → 71DC4     共 4 段 · 斷在�
 「為什麼是這一條」不該只是一個要相信的數字。
 
 看到這些，就表示這台機器上的東西是完整的。
+
+## 3-4　好幾個人一起用
+
+同一套畫面可以同時開在好幾台電腦上，各自看、各自拉回放，互不影響。
+會改到狀態的只有「接手」「結案」「暫停／開始」和設定：
+
+* 第一次按「接手」或「結案」會問一次你的名字（或工號），之後記在那台瀏覽器裡，
+  卡片上會寫「接手：○○」。要換名字，點事件清單標題旁的「我是 ○○」。
+* 別人先接手了，你按下去會馬上看到「○○已經接手這件事」，卡片同時更新；
+  結案也一樣，先結案的人填的處理結果不會被後來的人蓋掉。
+* 畫面每 5 秒自己更新一次，所以別人的動作最慢 5 秒後會出現在你的畫面上。
 
 ---
 
