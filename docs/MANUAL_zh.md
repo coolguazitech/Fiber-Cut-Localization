@@ -1,6 +1,6 @@
 # FCL — 部署與維護說明書
 
-版本 **5.27.0** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.27.1** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -349,6 +349,10 @@
 - 「立即重新撈取」連按、或兩個人同時按，只會真的向網管撈一輪。
 - 回放拉時間軸、搜尋 alarm 這些純看的動作，本來就各看各的，彼此不影響。
 
+**5.27.1**
+- 別人按了暫停／開始，你的狀態卡片 3 秒內跟上（以前要等它 30 秒一次的輪詢，
+  下面的近期 Alarm 早就紅框了、上面卻還寫監控中）。
+
 </details>
 
 ---
@@ -408,7 +412,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.27.0
+docker pull coolguazi/fiber-cut-localizer:5.27.1
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -416,7 +420,7 @@ docker pull coolguazi/fiber-cut-localizer:5.27.0
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.27.0
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.27.1
 > docker run --platform linux/amd64 …
 > ```
 
@@ -425,14 +429,14 @@ docker pull coolguazi/fiber-cut-localizer:5.27.0
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.27.0
-docker save coolguazi/fiber-cut-localizer:5.27.0 | gzip > fcl-5.27.0.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.27.1
+docker save coolguazi/fiber-cut-localizer:5.27.1 | gzip > fcl-5.27.1.tar.gz
 ```
 
-把 `fcl-5.27.0.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-5.27.1.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-5.27.0.tar.gz | docker load
+gunzip -c fcl-5.27.1.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -448,7 +452,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.27.0
+    image: coolguazi/fiber-cut-localizer:5.27.1
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
@@ -674,7 +678,7 @@ core-03  Eth1/8 ↔ core-04  Eth1/1     71DC3 → 71DC4     共 4 段 · 斷在�
   卡片上會寫「接手：○○」。要換名字，點事件清單標題旁的「我是 ○○」。
 * 別人先接手了，你按下去會馬上看到「○○已經接手這件事」，卡片同時更新；
   結案也一樣，先結案的人填的處理結果不會被後來的人蓋掉。
-* 畫面每 5 秒自己更新一次，所以別人的動作最慢 5 秒後會出現在你的畫面上。
+* 畫面會自己更新：事件清單 5 秒一次、暫停／開始 3 秒一次，所以別人的動作最慢幾秒後就會出現在你的畫面上。
 
 ---
 
