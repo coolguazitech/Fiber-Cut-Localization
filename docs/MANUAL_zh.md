@@ -324,7 +324,7 @@ NMS_AUTH_TOKEN=
 NMS_AUTH_HEADER=
 # 多久自己重讀一次，秒。預設一天
 NMS_POLL_INTERVAL=86400
-NMS_TIMEOT=10
+NMS_TIMEOUT=10
 NMS_CONCURRENCY=8
 
 # ── 資料保留 ────────────────────────────────────────────────
@@ -333,8 +333,8 @@ LOG_RETENTION_DAYS=7
 
 # ── 設定的帳密 ──────────────────────────────────────────────
 # 點「設定」要輸入的帳密。預設 root / admin123，上線前請改掉
-ADIN_USER=root
-ADIN_PASSWORD=admin123
+ADMIN_USER=root
+ADMIN_PASSWORD=admin123
 
 # ── 演習 ────────────────────────────────────────────────────
 # 1＝畫面上有「演習」按鈕，可以自己製造一次斷纖來確認系統活著、或平常測試。
@@ -660,7 +660,7 @@ docker compose pull && docker compose up -d
 | `http_401` / `http_403` | token 不對 / 沒權限 | 換 token；不是 Bearer 就用 `NMS_AUTH_HEADER` |
 | `http_404` | 網址路徑不對 | 常見是少了結尾斜線 |
 | `http_5xx` | 網管自己出錯 | 等一下再撈，或找網管管理員 |
-| `timeout` | 沒在時限內回應 | 確認網路可達，必要時調大 `NMS_TIMEOT` |
+| `timeout` | 沒在時限內回應 | 確認網路可達，必要時調大 `NMS_TIMEOUT` |
 | `connect` | 連不上 | DNS、防火牆、TLS 憑證 |
 | `parse` | 回應不是 JSON | 看 `response_sample`，開頭是 `<html>` 就是 SSO 登入頁 |
 | `unknown` | 網管查無此 hostname | 設備清單過時，重新匯入 |
