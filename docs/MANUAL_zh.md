@@ -1,6 +1,6 @@
 # FCL — 部署與維護說明書
 
-版本 **5.27.1** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **1.0** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -10,8 +10,12 @@
 > **5.0 是第一個正式版。** 4.x 是做給你試用的迭代；5.0 之後修問題走 5.0.x、
 > 加功能走 5.x，說明書會跟著同一個號碼走。
 
+> **版號從 1.0 重新起算。** 之前的 5.x 都是開發期的編號，不代表正式版本；
+> Docker Hub 上只保留 `latest` 與 1.0 起的標籤。功能上 1.0 = 5.27.1 加上下面
+> 1.0 那一段。
+
 <details>
-<summary>5.0 有什麼</summary>
+<summary>開發期到 1.0 的變更紀錄</summary>
 
 **定位**
 - 匯入光纖圖與設備清單 → 向網管撈出邏輯連線 → 收 log → 斷纖時指出最可能的那一條。
@@ -353,6 +357,17 @@
 - 別人按了暫停／開始，你的狀態卡片 3 秒內跟上（以前要等它 30 秒一次的輪詢，
   下面的近期 Alarm 早就紅框了、上面卻還寫監控中）。
 
+**1.0 — 邏輯拓樸依單位篩選、暫停後重新整理回首頁**
+- 事件頁「邏輯拓樸」多了「單位」下拉選單：依 alarm 標頭的單位（單位 A／B／C）
+  篩選。選一個單位，圖上留下的是該單位 alarm 報出來的連線，連線兩端都畫，
+  對端設備就算是別的單位也會一起出現；「受影響／+1 跳」照常套用。選項從資料來，
+  只列這件事裡真的出現的單位，每個後面寫幾條。
+- 近期 Alarm 與原始 alarm 表格多一欄「單位」，匯出的 CSV 也有。
+- 演習製造的 alarm 會依設備名稱標單位（名稱裡有 分配到三個單位
+  ）所以演習時三個單位都切得到。正式環境的單位由網管標頭決定。
+- 按過「開始收集」之後再暫停，重新整理頁面會回到首頁顯示「已暫停」，不再被
+  送回設定精靈的最後一頁。從沒按過開始的，仍停在精靈等人按。
+
 </details>
 
 ---
@@ -412,7 +427,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.27.1
+docker pull coolguazi/fiber-cut-localizer:1.0
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -420,7 +435,7 @@ docker pull coolguazi/fiber-cut-localizer:5.27.1
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.27.1
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.0
 > docker run --platform linux/amd64 …
 > ```
 
@@ -429,14 +444,14 @@ docker pull coolguazi/fiber-cut-localizer:5.27.1
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.27.1
-docker save coolguazi/fiber-cut-localizer:5.27.1 | gzip > fcl-5.27.1.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.0
+docker save coolguazi/fiber-cut-localizer:1.0 | gzip > fcl-1.0.tar.gz
 ```
 
-把 `fcl-5.27.1.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-1.0.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-5.27.1.tar.gz | docker load
+gunzip -c fcl-1.0.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -452,7 +467,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.27.1
+    image: coolguazi/fiber-cut-localizer:1.0
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
