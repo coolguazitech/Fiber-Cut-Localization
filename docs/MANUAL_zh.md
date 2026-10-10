@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **5.25.4** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.26** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -297,6 +297,16 @@
 **5.25.4**
 - 「已暫停」的紅色光暈加粗：卡片外框光暈 24px、按鈕本身也多一圈光暈。
 
+**5.26 —— 時間軸拖曳即時跟動；監控中雷達、已暫停凝滯紅光**
+- 修一個 bug：事件回放拖曳時間軸時，alarm 的密度長條不跟著手指動、放開才跳到
+  定點。原因是長條用「第幾格 × 格寬」畫，假設資料剛好涵蓋目前視窗；現在改用
+  每一格的絕對時間換算位置，跟爆量色帶、刻度一樣隨拖曳移動，重抓資料只補上
+  新露出的那一段。
+- 「監控中」的圖示變成一面小雷達：同心圓格線＋一道綠色扇形掃過去（2.4 秒一圈），
+  外圈光暈慢慢呼吸；字不動。
+- 「已暫停」改成凝滯的紅光：光暈很慢地脹縮（3.6 秒一輪），圖示內側帶紅色暈，
+  像警戒燈沒在轉、只是亮著。「減少動態」時全部靜止。
+
 </details>
 
 ---
@@ -356,7 +366,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.25.4
+docker pull coolguazi/fiber-cut-localizer:5.26
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -364,7 +374,7 @@ docker pull coolguazi/fiber-cut-localizer:5.25.4
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.25.4
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.26
 > docker run --platform linux/amd64 …
 > ```
 
@@ -373,14 +383,14 @@ docker pull coolguazi/fiber-cut-localizer:5.25.4
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.25.4
-docker save coolguazi/fiber-cut-localizer:5.25.4 | gzip > fcl-5.25.4.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.26
+docker save coolguazi/fiber-cut-localizer:5.26 | gzip > fcl-5.26.tar.gz
 ```
 
-把 `fcl-5.25.4.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-5.26.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-5.25.4.tar.gz | docker load
+gunzip -c fcl-5.26.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -396,7 +406,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.25.4
+    image: coolguazi/fiber-cut-localizer:5.26
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
