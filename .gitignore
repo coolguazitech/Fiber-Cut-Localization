@@ -42,3 +42,6 @@ prototype/
 
 # 維運主控台的源碼 —— 只留在本機，不進這個公開 repo
 prototype_old/
+
+# 本機用的資料（alarm 匯入檔等），不進 git、不進 image
+local/
