@@ -1,6 +1,6 @@
 # FCL — 部署與維護說明書
 
-版本 **5.19.2** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **5.20** · `linux/amd64` · 離線檔 39.3 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -244,7 +244,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:5.19.2
+docker pull coolguazi/fiber-cut-localizer:5.20
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -252,7 +252,7 @@ docker pull coolguazi/fiber-cut-localizer:5.19.2
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.19.2
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.20
 > docker run --platform linux/amd64 …
 > ```
 
@@ -261,14 +261,14 @@ docker pull coolguazi/fiber-cut-localizer:5.19.2
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.19.2
-docker save coolguazi/fiber-cut-localizer:5.19.2 | gzip > fcl-5.19.2.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:5.20
+docker save coolguazi/fiber-cut-localizer:5.20 | gzip > fcl-5.20.tar.gz
 ```
 
-把 `fcl-5.19.2.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-5.20.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-5.19.2.tar.gz | docker load
+gunzip -c fcl-5.20.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -284,7 +284,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:5.19.2
+    image: coolguazi/fiber-cut-localizer:5.20
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
@@ -330,6 +330,11 @@ NMS_CONCURRENCY=8
 # ── 資料保留 ────────────────────────────────────────────────
 # alarm 留幾天。事件是永久的，不受這個影響
 LOG_RETENTION_DAYS=7
+
+# ── 設定的帳密 ──────────────────────────────────────────────
+# 點「設定」要輸入的帳密。預設 root / admin123，上線前請改掉
+ADMIN_USER=root
+ADMIN_PASSWORD=admin123
 
 # ── 演習 ────────────────────────────────────────────────────
 # 1＝畫面上有「演習」按鈕，可以自己製造一次斷纖來確認系統活著、或平常測試。
