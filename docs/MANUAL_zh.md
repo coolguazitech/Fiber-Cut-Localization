@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **1.2.1** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **1.2.2** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -426,6 +426,13 @@
   有搜尋條件時只匯符合的。按鈕上寫「全部 N 筆」。
 - 「最近 1 分鐘幾筆」改用整個緩衝區數，不再被取回上限截在 40。
 
+**1.2.2**
+- 新事件警示框在事件收斂前不再寫斷點：那時候的第一名是用前幾筆 alarm 算的，
+  收斂後常會換，寫出來會讓人照著錯的去派工。收斂前顯示「判斷中 —— 等 alarm
+  停下來再給斷點」與「N 條斷線（還在增加）」，框每 5 秒更新，收斂後自動填上
+  斷點與證據力道。
+- 事件卡片在「進行中」狀態的第一名旁標「暫定」。
+
 </details>
 
 ---
@@ -485,7 +492,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:1.2.1
+docker pull coolguazi/fiber-cut-localizer:1.2.2
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -493,7 +500,7 @@ docker pull coolguazi/fiber-cut-localizer:1.2.1
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.2.1
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.2.2
 > docker run --platform linux/amd64 …
 > ```
 
@@ -502,14 +509,14 @@ docker pull coolguazi/fiber-cut-localizer:1.2.1
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.2.1
-docker save coolguazi/fiber-cut-localizer:1.2.1 | gzip > fcl-1.2.1.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.2.2
+docker save coolguazi/fiber-cut-localizer:1.2.2 | gzip > fcl-1.2.2.tar.gz
 ```
 
-把 `fcl-1.2.1.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-1.2.2.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-1.2.1.tar.gz | docker load
+gunzip -c fcl-1.2.2.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -525,7 +532,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:1.2.1
+    image: coolguazi/fiber-cut-localizer:1.2.2
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
