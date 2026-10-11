@@ -1,6 +1,6 @@
 # Optiview — 部署與維護說明書
 
-版本 **1.1** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **1.1.1** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -384,6 +384,15 @@
 - 待處理（進行中／待處理）的事件卡片加暈光閃爍，進行中紅色、待處理琥珀色；
   接手之後就停。
 
+**1.1.1 — 修正：前一件事件剛收斂不久的第二次斷纖會被吞掉**
+- 偵測器切格子的寬度原本跟著保留區長度走（alarm 少、保留區長時一格可達
+  半小時），相隔十分鐘的兩次斷纖會被併成同一個爆量，併進已收斂的事件後就
+  被當成「已涵蓋」丟掉，第二次斷纖永遠開不出事件。現在格子最寬 30 秒。
+- 另加一道保險：爆量尾巴超出已收斂事件的範圍、而且尾巴自己就夠 5 筆，
+  就把尾巴開成新事件。
+- 升級後第一輪偵測可能把保留區裡以前被吞掉的斷纖補開成事件（時間欄會寫
+  它真正發生的時間），那是修正生效，不是誤報。
+
 </details>
 
 ---
@@ -443,7 +452,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:1.1
+docker pull coolguazi/fiber-cut-localizer:1.1.1
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -451,7 +460,7 @@ docker pull coolguazi/fiber-cut-localizer:1.1
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.1
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.1.1
 > docker run --platform linux/amd64 …
 > ```
 
@@ -460,14 +469,14 @@ docker pull coolguazi/fiber-cut-localizer:1.1
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.1
-docker save coolguazi/fiber-cut-localizer:1.1 | gzip > fcl-1.1.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.1.1
+docker save coolguazi/fiber-cut-localizer:1.1.1 | gzip > fcl-1.1.1.tar.gz
 ```
 
-把 `fcl-1.1.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-1.1.1.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-1.1.tar.gz | docker load
+gunzip -c fcl-1.1.1.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -483,7 +492,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:1.1
+    image: coolguazi/fiber-cut-localizer:1.1.1
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
