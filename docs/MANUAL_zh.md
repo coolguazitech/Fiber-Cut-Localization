@@ -1,6 +1,6 @@
 # FCL — 部署與維護說明書
 
-版本 **1.1.1** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **1.2.0** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -393,6 +393,34 @@
 - 升級後第一輪偵測可能把保留區裡以前被吞掉的斷纖補開成事件（時間欄會寫
   它真正發生的時間），那是修正生效，不是誤報。
 
+**1.2.0 — 通盤檢視後的修正**
+
+會漏報或弄壞資料的：
+- 每日排程（03:00 自動撈網管、04:00 清過期 log）以前從沒跑過：程式睡到目標
+  時刻醒來再問「還有幾秒」，答案已經是「明天」。現在記住目標時刻再比對。
+  系統日誌也套保留天數（`SYSLOG_RETENTION_DAYS`，預設 30）。
+- 規模太小而被壓下的事件，同一波後來又多掉幾條，會重新收斂、有機會升成事件。
+- 偵測器不再只回最新 12 個爆量（重啟重讀 7 天時，第 13 個以後開不成事件）。
+- 網管一筆時間戳在未來的 alarm 不會再把記憶體裡的時間軸清空。
+- 編輯刪除、清時間軸跟偵測器那一輪互斥，不會撞出「0 筆 log」的永久快照。
+- 接真網管：撈取途中出錯一定放下「撈取中」旗子（以前會卡住只能重啟）；
+  快取空時不再由每筆 alarm、每次狀態輪詢觸發整輪同步撈取。
+- 事件清單輪詢不再每次深拷貝每件事件的全部 log。
+
+安全：
+- CORS 預設關閉（只允許同源）。開發要跨來源時設 `CORS_ORIGINS`。
+
+多人與畫面：
+- 事件頁的接手／結案跟清單頁一致：帶名字、別人先接手會回填現況並以中性顏色
+  告知；「重新開啟」會清掉接手人。
+- 後端連不上時標題列亮「連線中斷」；光纖圖抓取失敗會報錯不再靜靜變空。
+- 編輯模式期間表格暫停輪詢，不會刪到已滾出畫面的 alarm。
+- 文字：錯誤條的關閉鈕、對不到 DC 的標籤改中文；「待處理」頁籤改名「未結案」；
+  事件頁的空狀態不再叫人拖不存在的時間軸。
+- 窄視窗（900px 以下）事件頁改上下排；對話框鎖住鍵盤焦點、Esc 可關（新事件
+  警示框與演習框除外）。
+- 修了三處競態：連點「斷點如何影響」的卡片、網址前進後退、CSV 在 Firefox/Safari。
+
 </details>
 
 ---
@@ -452,7 +480,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:1.1.1
+docker pull coolguazi/fiber-cut-localizer:1.2.0
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -460,7 +488,7 @@ docker pull coolguazi/fiber-cut-localizer:1.1.1
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.1.1
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.2.0
 > docker run --platform linux/amd64 …
 > ```
 
@@ -469,14 +497,14 @@ docker pull coolguazi/fiber-cut-localizer:1.1.1
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.1.1
-docker save coolguazi/fiber-cut-localizer:1.1.1 | gzip > fcl-1.1.1.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.2.0
+docker save coolguazi/fiber-cut-localizer:1.2.0 | gzip > fcl-1.2.0.tar.gz
 ```
 
-把 `fcl-1.1.1.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-1.2.0.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-1.1.1.tar.gz | docker load
+gunzip -c fcl-1.2.0.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -492,7 +520,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:1.1.1
+    image: coolguazi/fiber-cut-localizer:1.2.0
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
@@ -547,6 +575,10 @@ NMS_CABLE_FIELDS=
 
 # ── 設定的帳密 ──────────────────────────────────────────────
 # 點「設定」要輸入的帳密。預設 root / admin123，上線前請改掉
+# 系統日誌保留天數（預設 30）
+SYSLOG_RETENTION_DAYS=30
+# 開發時前端跑在別的 port 才需要；正式環境留空（只允許同源）
+CORS_ORIGINS=
 ADMIN_USER=root
 ADMIN_PASSWORD=admin123
 
