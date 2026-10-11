@@ -1,6 +1,6 @@
 # FCL — 部署與維護說明書
 
-版本 **1.0.1** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **1.1** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -373,6 +373,17 @@
   「斷點如何影響」或「原始 alarm」再回來都還在；從設備卡片按「替代路徑 →」跳
   過去再回來也一樣。換另一件事件才會歸零。
 
+**1.1 — 新事件警示框、待處理卡片暈光**
+- 偵測到新事件時，整個畫面跳出紅色警示框（像手機的國家級警報）：事件編號、
+  時間、幾條斷線、牽連幾組 DC、最可能的斷點。點背景、按 Esc 都關不掉，
+  一定要按「知悉」；「知悉並前往處理」順便打開那件事。幾件一起來就列在同一框。
+- 「知悉」是這台瀏覽器的事（我看到了），跟「接手」（我負責）不同：每個人
+  各自會跳、各自知悉；被接手、結案或刪掉的事件會自己從框裡消失。
+- 第一次打開主控台時，當下已經存在的事件一律當成看過，不會被舊事故疊一堆
+  警報；之後新出現的才跳。
+- 待處理（進行中／待處理）的事件卡片加暈光閃爍，進行中紅色、待處理琥珀色；
+  接手之後就停。
+
 </details>
 
 ---
@@ -432,7 +443,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:1.0.1
+docker pull coolguazi/fiber-cut-localizer:1.1
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -440,7 +451,7 @@ docker pull coolguazi/fiber-cut-localizer:1.0.1
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.0.1
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.1
 > docker run --platform linux/amd64 …
 > ```
 
@@ -449,14 +460,14 @@ docker pull coolguazi/fiber-cut-localizer:1.0.1
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.0.1
-docker save coolguazi/fiber-cut-localizer:1.0.1 | gzip > fcl-1.0.1.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.1
+docker save coolguazi/fiber-cut-localizer:1.1 | gzip > fcl-1.1.tar.gz
 ```
 
-把 `fcl-1.0.1.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-1.1.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-1.0.1.tar.gz | docker load
+gunzip -c fcl-1.1.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -472,7 +483,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:1.0.1
+    image: coolguazi/fiber-cut-localizer:1.1
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
@@ -699,6 +710,7 @@ core-03  Eth1/8 ↔ core-04  Eth1/1     71DC3 → 71DC4     共 4 段 · 斷在�
 * 別人先接手了，你按下去會馬上看到「○○已經接手這件事」，卡片同時更新；
   結案也一樣，先結案的人填的處理結果不會被後來的人蓋掉。
 * 畫面會自己更新：事件清單 5 秒一次、暫停／開始 3 秒一次，所以別人的動作最慢幾秒後就會出現在你的畫面上。
+* 新事件的紅色警示框每個人各自會跳、各自按「知悉」；接手仍要到卡片上按，接手之後其他人的框會自己消失。
 
 ---
 
