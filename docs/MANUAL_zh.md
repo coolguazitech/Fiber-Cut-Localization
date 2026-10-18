@@ -594,6 +594,12 @@ NMS_CONCURRENCY=8
 # alarm 留幾天。事件是永久的，不受這個影響
 LOG_RETENTION_DAYS=7
 
+# ── 事件的認定條件 ──────────────────────────────────────────
+# 最後一筆 alarm 之後再等幾秒沒有新的，就當事件結束並收斂（預設 25.0；演習可設 6）
+ALERT_SETTLE_SECONDS=25.0
+# 一波至少幾筆 alarm 才算爆量、斷線少於幾條記為「規模太小」—— 同一個數字（預設 3）
+ALERT_MIN_DOWN_PEERS=3
+
 # ── 網管回應不是 NetBox 形狀時 ──────────────────────────────
 # 介面清單在別的路徑：逗號分隔、用點連層級（例：data.ports）
 NMS_INTERFACE_PATHS=
