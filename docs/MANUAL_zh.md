@@ -1,6 +1,6 @@
 # FCL — 部署與維護說明書
 
-版本 **1.2.2** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **1.2.3** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -433,6 +433,14 @@
   斷點與證據力道。
 - 事件卡片在「進行中」狀態的第一名旁標「暫定」。
 
+**1.2.3 — 修正：接真網管時「有 cable 但一條鄰接都算不出來」**
+- cable 兩端的攤平欄位（鍵名以 termination_a／termination_b 開頭、值是
+  `{"name": …}` 物件）現在不設 `NMS_CABLE_FIELDS` 也會自動認得。以前沒設或設錯
+  就會得到「有 cable，但兩端都對不上這台設備的名字」，網管撈完 0 條邏輯連線。
+- 設備名比對不分大小寫、不看網域後綴（一邊 FQDN 一邊短名也對得上）；兩端設備名
+  都對不上時，改用「這條 cable 掛在哪個介面底下」判斷本地端。
+- 網管診斷的那一句提示改成會列出 cable 裡實際的鍵名，直接看得出差在哪。
+
 </details>
 
 ---
@@ -492,7 +500,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:1.2.2
+docker pull coolguazi/fiber-cut-localizer:1.2.3
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -500,7 +508,7 @@ docker pull coolguazi/fiber-cut-localizer:1.2.2
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.2.2
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.2.3
 > docker run --platform linux/amd64 …
 > ```
 
@@ -509,14 +517,14 @@ docker pull coolguazi/fiber-cut-localizer:1.2.2
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.2.2
-docker save coolguazi/fiber-cut-localizer:1.2.2 | gzip > fcl-1.2.2.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.2.3
+docker save coolguazi/fiber-cut-localizer:1.2.3 | gzip > fcl-1.2.3.tar.gz
 ```
 
-把 `fcl-1.2.2.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-1.2.3.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-1.2.2.tar.gz | docker load
+gunzip -c fcl-1.2.3.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -532,7 +540,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:1.2.2
+    image: coolguazi/fiber-cut-localizer:1.2.3
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
@@ -583,6 +591,8 @@ LOG_RETENTION_DAYS=7
 # 介面清單在別的路徑：逗號分隔、用點連層級（例：data.ports）
 NMS_INTERFACE_PATHS=
 # cable 兩端是攤平的欄位：四個鍵名，順序 a 端設備,a 端介面,b 端設備,b 端介面
+# 1.2.3 起通常不用填：鍵名以 termination_a／termination_b 開頭的攤平寫法會自動認得，
+# 值是字串或 {"name": …} 物件都可以。只有鍵名完全不同時才需要指定。
 NMS_CABLE_FIELDS=
 
 # ── 設定的帳密 ──────────────────────────────────────────────
