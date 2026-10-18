@@ -1,6 +1,6 @@
 # FCL — 部署與維護說明書
 
-版本 **1.2.5** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **1.3.0** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -454,6 +454,14 @@
 - 「斷點如何影響」的卡片拿掉「N／M 條候選路徑經過斷點」那一句：對判斷沒有幫助，
   展開後的替代路徑清單已經把走法講完。
 
+**1.3.0 — 「斷點如何影響」改成三層**
+- 以前一對設備一張卡片，同一組 DC 的每張卡片展開都是同一份路徑，資訊層級不對。
+  現在是：**斷點 → 每一組 DC（候選路徑與替代路徑）→ 這組 DC 底下的每一對設備
+  與斷掉的介面對**。路徑是 DC 之間的事，所以掛在 DC 那一層。
+- 第一組（解釋得了、斷得最多的）自動展開；其他組按「看候選與替代路徑」展開。
+- 從邏輯拓樸的設備卡片按「替代路徑 →」跳過來時，只顯示那一對設備所在的 DC 組、
+  自動展開，組內只列那一對；「顯示全部 N 組」回到完整清單。
+
 </details>
 
 ---
@@ -513,7 +521,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:1.2.5
+docker pull coolguazi/fiber-cut-localizer:1.3.0
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -521,7 +529,7 @@ docker pull coolguazi/fiber-cut-localizer:1.2.5
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.2.5
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.3.0
 > docker run --platform linux/amd64 …
 > ```
 
@@ -530,14 +538,14 @@ docker pull coolguazi/fiber-cut-localizer:1.2.5
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.2.5
-docker save coolguazi/fiber-cut-localizer:1.2.5 | gzip > fcl-1.2.5.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.3.0
+docker save coolguazi/fiber-cut-localizer:1.3.0 | gzip > fcl-1.3.0.tar.gz
 ```
 
-把 `fcl-1.2.5.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-1.3.0.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-1.2.5.tar.gz | docker load
+gunzip -c fcl-1.3.0.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -553,7 +561,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:1.2.5
+    image: coolguazi/fiber-cut-localizer:1.3.0
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
