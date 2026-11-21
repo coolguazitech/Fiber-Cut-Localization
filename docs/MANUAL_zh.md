@@ -1,6 +1,6 @@
 # FCL — 部署與維護說明書
 
-版本 **1.3.0** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
+版本 **1.4.0** · `linux/amd64` · 離線檔 39.2 MB · 弱點掃描 CRITICAL 0 / HIGH 0 / MEDIUM 0
 
 這一份是**在公司照著做**用的。從一台空的 Linux 主機到畫面上有事件，照順序做完就好。
 不需要讀程式碼，也不需要裝 Python 或 Node。
@@ -462,6 +462,23 @@
 - 從邏輯拓樸的設備卡片按「替代路徑 →」跳過來時，只顯示那一對設備所在的 DC 組、
   自動展開，組內只列那一對；「顯示全部 N 組」回到完整清單。
 
+**1.4.0 — 平行光纖**
+- 光纖圖允許同一對 DC 之間有好幾條光纖：一行一條，可選 `fiber_id`／`label` 欄；
+  沒給就自動編號（#2、#3…）。預覽會列出哪幾對是平行的。
+- 計分把同一對 DC 的平行光纖當成一組（路徑經過其中任一條就算經過），不會因為
+  每條各自只解釋得了一半而被攤薄；排名裡一組只出現一名，附「另有 N 條平行光纖」。
+- 光纖圖：平行光纖各自偏開畫、標籤帶 #n；斷點所在那一對的其他光纖用青色標
+  「平行可替代」，圖例多一行；結論帶多一顆「另有 N 條平行光纖，分不出是哪一條」。
+  「斷點如何影響」的替代路徑會列出另一條平行光纖（1 跳）。
+- 匯入 alarm／對端反查：設備名不分大小寫、不看網域後綴；介面對不到時報告列出
+  設備上相近的介面名，查得到介面但沒 cable 時也會說清楚。
+- 演習的模擬走法改成偏好短路徑（權重 1／跳數²）。以前所有候選路徑等機率，
+  三四跳的繞法跟直達一樣常被抽到，切一條光纖時定位會指到別對 DC。
+- 偵測器：門檻小（例如 3 筆）時，三筆在一秒內到齊卻剛好跨過格子邊界（2＋1）
+  會漏掉；現在相鄰兩格相加過門檻也算爆量。
+- 系統預設名稱、CSV 檔名前綴、瀏覽器本機儲存的鍵名改以 FCL 稱呼（`APP_NAME`
+  仍可自訂）。升級後第一次開畫面會重新建立「知悉」基準、重新問一次操作者名字。
+
 </details>
 
 ---
@@ -521,7 +538,7 @@ sudo usermod -aG docker "$USER"   # 加完要登出再登入一次
 **A. 主機連得到網路**
 
 ```bash
-docker pull coolguazi/fiber-cut-localizer:1.3.0
+docker pull coolguazi/fiber-cut-localizer:1.4.0
 ```
 
 > 這個映像檔**只有 `linux/amd64`**（公司的 Linux server 就是這個）。
@@ -529,7 +546,7 @@ docker pull coolguazi/fiber-cut-localizer:1.3.0
 > `no matching manifest for linux/arm64/v8` —— 那不是壞了，加上平台就好：
 >
 > ```bash
-> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.3.0
+> docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.4.0
 > docker run --platform linux/amd64 …
 > ```
 
@@ -538,14 +555,14 @@ docker pull coolguazi/fiber-cut-localizer:1.3.0
 在家裡／有網路的機器上：
 
 ```bash
-docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.3.0
-docker save coolguazi/fiber-cut-localizer:1.3.0 | gzip > fcl-1.3.0.tar.gz
+docker pull --platform linux/amd64 coolguazi/fiber-cut-localizer:1.4.0
+docker save coolguazi/fiber-cut-localizer:1.4.0 | gzip > fcl-1.4.0.tar.gz
 ```
 
-把 `fcl-1.3.0.tar.gz` 拷到公司主機（約 39 MB），然後：
+把 `fcl-1.4.0.tar.gz` 拷到公司主機（約 39 MB），然後：
 
 ```bash
-gunzip -c fcl-1.3.0.tar.gz | docker load
+gunzip -c fcl-1.4.0.tar.gz | docker load
 ```
 
 ## 步驟 3　建立兩個檔案
@@ -561,7 +578,7 @@ mkdir -p ~/fiber-cut-localizer && cd ~/fiber-cut-localizer
 ```yaml
 services:
   app:
-    image: coolguazi/fiber-cut-localizer:1.3.0
+    image: coolguazi/fiber-cut-localizer:1.4.0
     container_name: fiber-cut-localizer
     restart: unless-stopped
     ports:
@@ -673,7 +690,7 @@ http://<主機IP>:8000/
 
 ## 2-1　匯入光纖圖
 
-CSV，兩欄，一行一條光纖：
+CSV，一行一條光纖，最少兩欄：
 
 ```csv
 site_a,site_b
@@ -682,7 +699,23 @@ site_a,site_b
 71DC2,71DC3
 ```
 
-**這份檔案同時定義了「有哪些 DC」**，第 2-2 步會逐行對照它。
+**同一對 DC 之間有好幾條光纖（平行光纖）就寫好幾行**。要分得出是哪一條，加
+`fiber_id` 欄（也可加 `label` 欄當畫面上的名字）；沒給的話系統自動編成第 1 條、
+第 2 條…（畫面顯示「71DC1 ↔ 71DC2 #2」）：
+
+```csv
+site_a,site_b,fiber_id,label
+71DC1,71DC2,,
+71DC1,71DC2,CABLE-0731,北側管道
+```
+
+預覽時會列出哪幾對 DC 是平行的。**平行光纖在 alarm 上分不出是哪一條斷了**
+（兩條的觀測特徵一樣），系統會把它們當成一組來判斷：結論帶寫「另有 N 條平行
+光纖，分不出是哪一條」，光纖圖上用青色標出同一對的其他光纖（它們就是現成的
+替代路徑），「斷點如何影響」的替代路徑也會列出它們。
+
+**這份檔案同時定義了「有哪些 DC」**，第 2-2 步會逐行對照它。匯入新的光纖圖會
+連設備清單一起清掉，之後要重新匯入設備清單、重新撈網管。
 
 ## 2-2　匯入設備清單
 
